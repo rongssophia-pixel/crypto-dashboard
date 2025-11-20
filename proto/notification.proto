@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package notification;
+
+import "common.proto";
+
+// Notification Service - handles alert delivery (email, SMS, SNS, push)
+service NotificationService {
+  // Send a single notification
+  rpc SendNotification(NotificationRequest) returns (NotificationResponse);
+  
+  // Send bulk notifications
+  rpc SendBulkNotifications(BulkNotificationRequest) returns (BulkNotificationResponse);
+  
+  // Get notification delivery status
+  rpc GetNotificationStatus(NotificationStatusRequest) returns (NotificationStatusResponse);
+  
+  // Get notification history for a user
+  rpc GetNotificationHistory(NotificationHistoryRequest) returns (NotificationHistoryResponse);
+}
+
+message NotificationRequest {
+  common.TenantContext context = 1;
+  string user_id = 2;
+  NotificationType type = 3;
+  string subject = 4;
+  string body = 5;
+  map<string, string> metadata = 6;
+  Priority priority = 7;
+  repeated string recipients = 8;  // email addresses, phone numbers, etc.
+}
+
+enum NotificationType {
+  EMAIL = 0;
+  SMS = 1;      // Future implementation
+  PUSH = 2;     // Future implementation
+  SNS = 3;      // Future AWS SNS
+  WEBHOOK = 4;  // Future webhook delivery
+}
+
+enum Priority {
+  LOW = 0;
+  NORMAL = 1;
+  HIGH = 2;
+  URGENT = 3;
+}
+
+message NotificationResponse {
+  string notification_id = 1;
+  bool success = 2;
+  string message = 3;
+  common.Timestamp sent_at = 4;
+}
+
+message BulkNotificationRequest {
+  common.TenantContext context = 1;
+  repeated NotificationRequest notifications = 2;
+}
+
+message BulkNotificationResponse {
+  int32 total_requested = 1;
+  int32 total_sent = 2;
+  int32 total_failed = 3;
+  repeated string failed_ids = 4;
+  repeated NotificationResponse results = 5;
+}
+
+message NotificationStatusRequest {
+  string notification_id = 1;
+  common.TenantContext context = 2;
+}
+
+message NotificationStatusResponse {
+  string notification_id = 1;
+  string status = 2;  // pending, sent, failed, delivered
+  string error_message = 3;
+  common.Timestamp created_at = 4;
+  common.Timestamp sent_at = 5;
+  int32 retry_count = 6;
+}
+
+message NotificationHistoryRequest {
+  common.TenantContext context = 1;
+  string user_id = 2;
+  common.Timestamp start_time = 3;
+  common.Timestamp end_time = 4;
+  int32 limit = 5;
+  int32 offset = 6;
+}
+
+message NotificationHistoryResponse {
+  repeated NotificationRecord records = 1;
+  int32 total_count = 2;
+}
+
+message NotificationRecord {
+  string notification_id = 1;
+  NotificationType type = 2;
+  string subject = 3;
+  string status = 4;
+  common.Timestamp created_at = 5;
+  common.Timestamp sent_at = 6;
+}
+

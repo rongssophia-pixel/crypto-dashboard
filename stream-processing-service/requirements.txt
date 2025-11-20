@@ -1,0 +1,24 @@
+# Stream Processing Service Dependencies
+
+fastapi
+uvicorn[standard]
+grpcio
+grpcio-tools
+pydantic
+pydantic-settings
+python-jose[cryptography]
+prometheus-client
+apache-flink
+boto3
+kafka-python
+
+# Development tools
+flake8
+black
+isort
+pre-commit
+
+# Testing
+pytest
+pytest-asyncio
+

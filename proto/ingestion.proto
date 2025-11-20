@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package ingestion;
+
+import "common.proto";
+
+// Ingestion Service - handles real-time data collection from crypto exchanges
+service IngestionService {
+  // Start streaming market data for given symbols
+  rpc StartDataStream(StartStreamRequest) returns (StartStreamResponse);
+  
+  // Stop an active data stream
+  rpc StopDataStream(StopStreamRequest) returns (common.Empty);
+  
+  // Get status of a running stream
+  rpc GetStreamStatus(StreamStatusRequest) returns (StreamStatusResponse);
+  
+  // Fetch historical market data
+  rpc FetchHistoricalData(HistoricalDataRequest) returns (HistoricalDataResponse);
+}
+
+message StartStreamRequest {
+  common.TenantContext context = 1;
+  repeated string symbols = 2;  // e.g., ["BTCUSDT", "ETHUSDT"]
+  string exchange = 3;           // e.g., "binance"
+  string stream_type = 4;        // e.g., "ticker", "trade", "kline"
+}
+
+message StartStreamResponse {
+  string stream_id = 1;
+  bool success = 2;
+  string message = 3;
+  common.Timestamp started_at = 4;
+}
+
+message StopStreamRequest {
+  string stream_id = 1;
+  common.TenantContext context = 2;
+}
+
+message StreamStatusRequest {
+  string stream_id = 1;
+  common.TenantContext context = 2;
+}
+
+message StreamStatusResponse {
+  string stream_id = 1;
+  bool is_active = 2;
+  repeated string symbols = 3;
+  int64 events_processed = 4;
+  common.Timestamp last_event_time = 5;
+  string health_status = 6;  // healthy, degraded, unhealthy
+}
+
+message HistoricalDataRequest {
+  common.TenantContext context = 1;
+  string symbol = 2;
+  string exchange = 3;
+  common.Timestamp start_time = 4;
+  common.Timestamp end_time = 5;
+  string interval = 6;  // 1m, 5m, 15m, 1h, 1d
+  int32 limit = 7;
+}
+
+message HistoricalDataResponse {
+  repeated MarketDataPoint data = 1;
+  int32 total_count = 2;
+}
+
+message MarketDataPoint {
+  string symbol = 1;
+  common.Timestamp timestamp = 2;
+  double price = 3;
+  double volume = 4;
+  double bid_price = 5;
+  double ask_price = 6;
+  double high_24h = 7;
+  double low_24h = 8;
+  map<string, string> metadata = 9;
+}
+

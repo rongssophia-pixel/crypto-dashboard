@@ -1,0 +1,37 @@
+# Analytics Service Dependencies
+
+# Core framework
+fastapi
+uvicorn[standard]
+
+# gRPC
+grpcio
+grpcio-tools
+
+# ClickHouse
+clickhouse-driver
+clickhouse-connect
+
+# Data validation
+pydantic
+pydantic-settings
+
+# Authentication
+python-jose[cryptography]
+
+# Monitoring
+prometheus-client
+
+# Utilities
+python-dateutil
+
+# Development tools
+flake8
+black
+isort
+pre-commit
+
+# Testing
+pytest
+pytest-asyncio
+

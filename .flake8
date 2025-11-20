@@ -1,0 +1,41 @@
+# Flake8 Configuration
+# Relaxed rules that work well with Black formatter
+
+[flake8]
+max-line-length = 88
+extend-ignore = 
+    # Whitespace before ':' (conflicts with Black)
+    E203,
+    # Line break before binary operator (conflicts with Black)
+    W503,
+    # Line too long (Black handles this)
+    E501,
+    # Module level import not at top of file (useful for conditional imports)
+    E402,
+    # Multiple statements on one line (sometimes useful)
+    E701,
+
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    env,
+    ENV,
+    .venv,
+    build,
+    dist,
+    *.egg-info,
+    .pytest_cache,
+    .mypy_cache,
+    *_pb2.py,
+    *_pb2_grpc.py,
+    *_pb2.pyi,
+
+per-file-ignores =
+    # Allow unused imports in __init__.py files
+    __init__.py: F401, F403
+    # Allow star imports in test files
+    test_*.py: F401, F403, F405
+
+max-complexity = 15
+

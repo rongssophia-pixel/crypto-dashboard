@@ -1,0 +1,29 @@
+# Shared utilities requirements
+
+# Core
+pydantic
+pydantic-settings
+
+# Authentication
+python-jose[cryptography]
+passlib[bcrypt]
+
+# gRPC
+grpcio
+grpcio-tools
+
+# Kafka
+kafka-python
+
+# Development tools
+flake8
+black
+isort
+pre-commit
+
+# Testing
+pytest
+pytest-asyncio
+
+# Note: Install these one at a time and pin versions in requirements_pinned.txt
+

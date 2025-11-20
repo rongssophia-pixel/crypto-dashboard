@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package storage;
+
+import "common.proto";
+
+// Storage Service - handles S3 archival and Athena queries
+service StorageService {
+  // Archive data to S3 (cold storage)
+  rpc ArchiveData(ArchiveRequest) returns (ArchiveResponse);
+  
+  // Query archived data using Athena
+  rpc QueryArchive(ArchiveQueryRequest) returns (ArchiveQueryResponse);
+  
+  // Get status of archival job
+  rpc GetArchiveStatus(ArchiveStatusRequest) returns (ArchiveStatusResponse);
+  
+  // List available archives
+  rpc ListArchives(ListArchivesRequest) returns (ListArchivesResponse);
+}
+
+message ArchiveRequest {
+  common.TenantContext context = 1;
+  common.Timestamp start_time = 2;
+  common.Timestamp end_time = 3;
+  repeated string symbols = 4;  // empty = all symbols
+  string data_type = 5;  // market_data, candles, alerts
+}
+
+message ArchiveResponse {
+  string archive_id = 1;
+  bool success = 2;
+  string s3_path = 3;
+  string message = 4;
+  int64 records_count = 5;
+}
+
+message ArchiveQueryRequest {
+  common.TenantContext context = 1;
+  string sql_query = 2;  // Athena-compatible SQL
+  int32 max_results = 3;
+}
+
+message ArchiveQueryResponse {
+  repeated ArchiveRow rows = 1;
+  repeated string column_names = 2;
+  int32 row_count = 3;
+  string execution_id = 4;
+}
+
+message ArchiveRow {
+  map<string, string> values = 1;
+}
+
+message ArchiveStatusRequest {
+  string archive_id = 1;
+  common.TenantContext context = 2;
+}
+
+message ArchiveStatusResponse {
+  string archive_id = 1;
+  string status = 2;  // pending, running, completed, failed
+  int64 records_archived = 3;
+  string s3_path = 4;
+  string error_message = 5;
+  common.Timestamp created_at = 6;
+  common.Timestamp completed_at = 7;
+}
+
+message ListArchivesRequest {
+  common.TenantContext context = 1;
+  common.Timestamp start_date = 2;
+  common.Timestamp end_date = 3;
+  int32 limit = 4;
+  int32 offset = 5;
+}
+
+message ListArchivesResponse {
+  repeated ArchiveMetadata archives = 1;
+  int32 total_count = 2;
+}
+
+message ArchiveMetadata {
+  string archive_id = 1;
+  string s3_path = 2;
+  common.Timestamp created_at = 3;
+  int64 size_bytes = 4;
+  int64 records_count = 5;
+  string data_type = 6;
+}
+

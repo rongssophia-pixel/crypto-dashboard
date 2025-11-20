@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package analytics;
+
+import "common.proto";
+
+// Analytics Service - real-time queries on market data
+service AnalyticsService {
+  // Query raw market data points
+  rpc QueryMarketData(QueryRequest) returns (QueryResponse);
+  
+  // Get aggregated candles (OHLCV)
+  rpc GetCandles(CandleRequest) returns (CandleResponse);
+  
+  // Get calculated metrics (volatility, averages, etc.)
+  rpc GetAggregatedMetrics(AggregationRequest) returns (AggregationResponse);
+  
+  // Stream real-time market data
+  rpc StreamRealTimeData(StreamRequest) returns (stream MarketDataEvent);
+}
+
+message QueryRequest {
+  common.TenantContext context = 1;
+  repeated string symbols = 2;
+  common.Timestamp start_time = 3;
+  common.Timestamp end_time = 4;
+  int32 limit = 5;
+  int32 offset = 6;
+  string order_by = 7;  // timestamp_asc, timestamp_desc
+}
+
+message QueryResponse {
+  repeated MarketDataPoint data = 1;
+  int32 total_count = 2;
+  bool has_more = 3;
+}
+
+message MarketDataPoint {
+  string symbol = 1;
+  common.Timestamp timestamp = 2;
+  double price = 3;
+  double volume = 4;
+  double bid_price = 5;
+  double ask_price = 6;
+  map<string, double> metrics = 7;
+}
+
+message CandleRequest {
+  common.TenantContext context = 1;
+  string symbol = 2;
+  string interval = 3;  // 1m, 5m, 15m, 1h, 4h, 1d
+  common.Timestamp start_time = 4;
+  common.Timestamp end_time = 5;
+  int32 limit = 6;
+}
+
+message CandleResponse {
+  repeated Candle candles = 1;
+  int32 total_count = 2;
+}
+
+message Candle {
+  common.Timestamp timestamp = 1;
+  double open = 2;
+  double high = 3;
+  double low = 4;
+  double close = 5;
+  double volume = 6;
+  int32 trade_count = 7;
+}
+
+message AggregationRequest {
+  common.TenantContext context = 1;
+  string symbol = 2;
+  repeated string metric_types = 3;  // avg_price, total_volume, volatility, price_change_pct
+  common.Timestamp start_time = 4;
+  common.Timestamp end_time = 5;
+  string time_bucket = 6;  // 1h, 1d, 1w
+}
+
+message AggregationResponse {
+  string symbol = 1;
+  map<string, double> metrics = 2;
+  repeated TimeSeriesPoint time_series = 3;
+}
+
+message TimeSeriesPoint {
+  common.Timestamp timestamp = 1;
+  map<string, double> values = 2;
+}
+
+message StreamRequest {
+  common.TenantContext context = 1;
+  repeated string symbols = 2;
+  bool include_trades = 3;
+  bool include_orderbook = 4;
+}
+
+message MarketDataEvent {
+  string symbol = 1;
+  common.Timestamp timestamp = 2;
+  double price = 3;
+  double volume = 4;
+  string event_type = 5;  // ticker, trade, orderbook_update
+}
+

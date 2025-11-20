@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package common;
+
+// Common timestamp message for all services
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}
+
+// Tenant context for multi-tenancy
+message TenantContext {
+  string tenant_id = 1;
+  string user_id = 2;
+  repeated string roles = 3;
+}
+
+// Empty response message
+message Empty {}
+
+// Standard status response
+message Status {
+  bool success = 1;
+  string message = 2;
+  int32 code = 3;
+}
+

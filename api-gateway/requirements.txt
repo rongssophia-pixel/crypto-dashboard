@@ -1,0 +1,24 @@
+# API Gateway Dependencies
+
+fastapi
+uvicorn[standard]
+grpcio
+grpcio-tools
+pydantic
+pydantic-settings
+python-jose[cryptography]
+passlib[bcrypt]
+prometheus-client
+httpx
+
+# Development tools
+flake8
+black
+isort
+pre-commit
+
+# Testing
+pytest
+pytest-asyncio
+httpx  # For testing FastAPI endpoints
+

@@ -1,0 +1,225 @@
+version: '3.8'
+
+services:
+  # Kafka with KRaft (no Zookeeper)
+  kafka:
+    image: apache/kafka:latest
+    container_name: crypto-kafka
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      # KRaft configuration
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
+      KAFKA_LISTENERS: 'PLAINTEXT://:9092,CONTROLLER://:9093'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      # Logging and retention
+      KAFKA_LOG_DIRS: '/var/lib/kafka/data'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: crypto-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ClickHouse
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: crypto-clickhouse
+    ports:
+      - "9000:9000"
+      - "8123:8123"
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./db/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # LocalStack (for AWS services emulation)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: crypto-localstack
+    ports:
+      - "4566:4566"
+      - "4571:4571"
+    environment:
+      SERVICES: s3,athena,flink
+      DEBUG: 1
+      DATA_DIR: /tmp/localstack/data
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - localstack-data:/tmp/localstack
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal s3 ls || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: crypto-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: crypto-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Microservices (uncomment when ready to deploy)
+  
+  # api-gateway:
+  #   build:
+  #     context: .
+  #     dockerfile: api-gateway/Dockerfile
+  #   container_name: crypto-api-gateway
+  #   ports:
+  #     - "8000:8000"
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - postgres
+  #     - kafka
+  #     - ingestion-service
+  #     - analytics-service
+  #     - storage-service
+  #     - notification-service
+
+  # ingestion-service:
+  #   build:
+  #     context: .
+  #     dockerfile: ingestion-service/Dockerfile
+  #   container_name: crypto-ingestion-service
+  #   ports:
+  #     - "50051:50051"
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - postgres
+  #     - kafka
+
+  # analytics-service:
+  #   build:
+  #     context: .
+  #     dockerfile: analytics-service/Dockerfile
+  #   container_name: crypto-analytics-service
+  #   ports:
+  #     - "50052:50052"
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - clickhouse
+
+  # storage-service:
+  #   build:
+  #     context: .
+  #     dockerfile: storage-service/Dockerfile
+  #   container_name: crypto-storage-service
+  #   ports:
+  #     - "50053:50053"
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - localstack
+
+  # notification-service:
+  #   build:
+  #     context: .
+  #     dockerfile: notification-service/Dockerfile
+  #   container_name: crypto-notification-service
+  #   ports:
+  #     - "50054:50054"
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - postgres
+  #     - kafka
+
+  # stream-processing-service:
+  #   build:
+  #     context: .
+  #     dockerfile: stream-processing-service/Dockerfile
+  #   container_name: crypto-stream-processing
+  #   ports:
+  #     - "50055:50055"
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - kafka
+  #     - clickhouse
+
+volumes:
+  kafka-data:
+  postgres-data:
+  clickhouse-data:
+  localstack-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  default:
+    name: crypto-network
+

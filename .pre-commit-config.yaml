@@ -1,0 +1,74 @@
+# Pre-commit hooks configuration
+# See https://pre-commit.com for more information
+
+repos:
+  # Black - Code formatter
+  - repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+      - id: black
+        language_version: python3.13
+        exclude: ^proto/.*_pb2\.py$|^proto/.*_pb2_grpc\.py$|^proto/.*_pb2\.pyi$
+
+  # Flake8 - Linter
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args: ['--config=.flake8']
+        exclude: ^proto/.*_pb2\.py$|^proto/.*_pb2_grpc\.py$|^proto/.*_pb2\.pyi$
+
+  # isort - Import sorter
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ['--profile', 'black']
+        exclude: ^proto/.*_pb2\.py$|^proto/.*_pb2_grpc\.py$|^proto/.*_pb2\.pyi$
+
+  # Trailing whitespace
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^proto/
+      - id: end-of-file-fixer
+        exclude: ^proto/
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Python-specific checks
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: python-check-blanket-noqa
+      - id: python-check-blanket-type-ignore
+      - id: python-no-log-warn
+      - id: python-use-type-annotations
+
+# Global settings
+default_language_version:
+  python: python3.13
+
+# Files to exclude from all hooks
+exclude: |
+  (?x)(
+    ^venv/|
+    ^env/|
+    ^ENV/|
+    ^\.venv/|
+    ^build/|
+    ^dist/|
+    ^\.eggs/|
+    ^.*\.egg-info/|
+    ^__pycache__/|
+    ^\.pytest_cache/|
+    ^\.mypy_cache/
+  )
+

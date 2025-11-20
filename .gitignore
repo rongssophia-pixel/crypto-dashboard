@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+
+# Docker
+*.log
+
+# Generated gRPC files
+*_pb2.py
+*_pb2.pyi
+*_pb2_grpc.py
+
+# Database
+*.db
+*.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+.hypothesis/
+
+# Monitoring
+monitoring/grafana/data/
+
+# IDE
+.vscode/
+.idea/
+
+# Code quality
+.flake8.cache
+
+TICKETS*.md

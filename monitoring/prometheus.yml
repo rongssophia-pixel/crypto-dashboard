@@ -1,0 +1,95 @@
+# Prometheus configuration
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'crypto-analytics'
+    environment: 'development'
+
+# Alerting configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Rule files (optional)
+# rule_files:
+#   - 'alerts/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # API Gateway
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:9100']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'api-gateway'
+
+  # Ingestion Service
+  - job_name: 'ingestion-service'
+    static_configs:
+      - targets: ['ingestion-service:9100']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'ingestion-service'
+
+  # Analytics Service
+  - job_name: 'analytics-service'
+    static_configs:
+      - targets: ['analytics-service:9102']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'analytics-service'
+
+  # Storage Service
+  - job_name: 'storage-service'
+    static_configs:
+      - targets: ['storage-service:9103']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'storage-service'
+
+  # Notification Service
+  - job_name: 'notification-service'
+    static_configs:
+      - targets: ['notification-service:9104']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'notification-service'
+
+  # Stream Processing Service
+  - job_name: 'stream-processing-service'
+    static_configs:
+      - targets: ['stream-processing-service:9105']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'stream-processing-service'
+
+  # PostgreSQL Exporter (optional)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+
+  # ClickHouse Exporter (optional)
+  # - job_name: 'clickhouse'
+  #   static_configs:
+  #     - targets: ['clickhouse-exporter:9116']
+
+  # Kafka Exporter (optional)
+  # - job_name: 'kafka'
+  #   static_configs:
+  #     - targets: ['kafka-exporter:9308']
+
