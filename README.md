@@ -94,6 +94,9 @@ python main.py
 
 - **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** - Complete setup and development guide
 - **[docs/CODE_QUALITY.md](docs/CODE_QUALITY.md)** - Code quality tools, pre-commit hooks, and best practices
+- **[TICKETS.md](TICKETS.md)** - Implementation tickets (Part 1: Infrastructure & Core Services)
+- **[TICKETS_PART2.md](TICKETS_PART2.md)** - Implementation tickets (Part 2: Advanced Features)
+- **[TICKETS_IMPLEMENTATION_GUIDE.md](TICKETS_IMPLEMENTATION_GUIDE.md)** - Implementation overview and progress tracking
 
 ## Project Structure
 
@@ -112,7 +115,15 @@ crypto-dashboard/
 └── scripts/              # Setup and utility scripts
 ```
 
+## Contributing
 
+1. **Always use virtual environment**: `source venv/bin/activate`
+2. **Pre-commit hooks will run automatically** on `git commit`
+3. **Follow the implementation tickets** in TICKETS.md and TICKETS_PART2.md
+4. **Write tests** for all new features
+5. **Update documentation** as needed
 
+## License
 
+[Add your license here]
 
