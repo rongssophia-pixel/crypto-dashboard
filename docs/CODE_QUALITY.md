@@ -34,18 +34,37 @@ This project uses **pre-commit hooks** to automatically run code quality checks 
 
 ### Install Pre-commit Hooks
 
-1. **Install pre-commit** (if not already installed):
+**Important**: Always use a virtual environment!
+
+1. **Create and activate virtual environment**:
+```bash
+cd /Users/yuyu/workspace/crypto-dashboard
+
+# Create venv (if not exists)
+python3 -m venv venv
+
+# Activate venv
+source venv/bin/activate  # On macOS/Linux
+# OR
+venv\Scripts\activate     # On Windows
+```
+
+2. **Install pre-commit**:
 ```bash
 pip install pre-commit
 ```
 
-2. **Install the git hooks**:
+3. **Install the git hooks**:
 ```bash
-cd /Users/yuyu/workspace/crypto-dashboard
 pre-commit install
 ```
 
 That's it! Pre-commit hooks will now run automatically on every `git commit`.
+
+**Remember**: Always activate venv before working:
+```bash
+source venv/bin/activate  # From project root
+```
 
 ### First Time Setup (Optional)
 
@@ -204,19 +223,31 @@ Add to `.vscode/settings.json`:
 
 ## Installation
 
-Install tools including pre-commit:
+**Always use virtual environment**:
 
-```bash
-cd <service-directory>
-source venv/bin/activate
-pip install flake8 black isort pre-commit
-pip freeze | grep -E "flake8|black|isort|pre-commit" >> requirements_pinned.txt
-```
-
-Then install the git hooks:
+1. **Create and activate venv** (from project root):
 ```bash
 cd /Users/yuyu/workspace/crypto-dashboard
+python3 -m venv venv
+source venv/bin/activate  # macOS/Linux
+# OR
+venv\Scripts\activate     # Windows
+```
+
+2. **Install tools**:
+```bash
+pip install --upgrade pip
+pip install flake8 black isort pre-commit pytest pytest-asyncio
+```
+
+3. **Install git hooks**:
+```bash
 pre-commit install
+```
+
+4. **Pin versions** (optional):
+```bash
+pip freeze > requirements_dev.txt
 ```
 
 ## CI/CD Integration

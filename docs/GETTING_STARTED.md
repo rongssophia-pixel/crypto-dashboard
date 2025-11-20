@@ -72,26 +72,48 @@ Edit `.env` file with your configuration:
 - Email provider settings (SendGrid/Mailgun)
 - JWT secret key
 
-### 3. Install Service Dependencies
+### 3. Create and Activate Virtual Environment
+
+**Always use a virtual environment** to avoid dependency conflicts:
+
+```bash
+# Create venv in project root
+cd /Users/yuyu/workspace/crypto-dashboard
+python3 -m venv venv
+
+# Activate venv
+source venv/bin/activate  # On macOS/Linux
+# OR
+venv\Scripts\activate     # On Windows
+```
+
+Your prompt should now show `(venv)` prefix.
+
+### 4. Install Dependencies
+
+With venv activated, install development tools:
+
+```bash
+pip install --upgrade pip
+pip install pre-commit flake8 black isort pytest pytest-asyncio
+```
 
 For each service you want to run locally:
 
 ```bash
 cd <service-directory>
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
 **Note**: Install dependencies one by one and pin versions as instructed in the plan.
 
-### 4. Generate gRPC Code
+### 5. Generate gRPC Code
 
 ```bash
 ./scripts/generate_proto.sh
 ```
 
-### 5. Initialize Databases
+### 6. Initialize Databases
 
 The database schemas will be automatically initialized when Docker containers start.
 Check the logs to ensure initialization completed successfully:
@@ -101,14 +123,18 @@ docker compose logs postgres
 docker compose logs clickhouse
 ```
 
-### 6. Run Services Locally
+### 7. Run Services Locally
 
-Each service can be run independently for development:
+Each service can be run independently for development.
+
+**Important**: Always activate venv first!
 
 ```bash
+# Activate venv (if not already activated)
+source venv/bin/activate  # From project root
+
 # Terminal 1: API Gateway
 cd api-gateway
-source venv/bin/activate
 python main.py
 
 # Terminal 2: Ingestion Service

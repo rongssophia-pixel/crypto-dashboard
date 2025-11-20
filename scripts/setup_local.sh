@@ -43,12 +43,29 @@ if ! command -v python3 &> /dev/null; then
 fi
 echo "✓ Python 3 found"
 
-# Install pre-commit if not already installed
-if ! command -v pre-commit &> /dev/null; then
+# Check if venv exists, create if not
+if [ ! -d "$PROJECT_ROOT/venv" ]; then
     echo ""
-    echo "Installing pre-commit..."
-    pip install pre-commit
+    echo "Creating virtual environment..."
+    python3 -m venv "$PROJECT_ROOT/venv"
+    echo "✓ Virtual environment created at $PROJECT_ROOT/venv"
 fi
+
+# Activate venv
+echo ""
+echo "Activating virtual environment..."
+source "$PROJECT_ROOT/venv/bin/activate"
+echo "✓ Virtual environment activated"
+
+# Upgrade pip
+echo ""
+echo "Upgrading pip..."
+pip install --upgrade pip
+
+# Install development tools
+echo ""
+echo "Installing development tools..."
+pip install pre-commit flake8 black isort pytest pytest-asyncio
 
 # Install pre-commit hooks
 echo ""
@@ -89,11 +106,19 @@ echo "  - LocalStack:         localhost:4566"
 echo "  - Prometheus:         http://localhost:9090"
 echo "  - Grafana:            http://localhost:3000 (admin/admin)"
 echo ""
+echo ""
+echo "==================================="
+echo "Setup Complete!"
+echo "==================================="
+echo ""
+echo "Virtual environment is activated at: $PROJECT_ROOT/venv"
+echo ""
 echo "Next steps:"
 echo "  1. Review and update .env file with your configuration"
-echo "  2. Install Python dependencies for each service"
-echo "  3. Pre-commit hooks are installed and ready"
-echo "  4. Run individual services for development"
+echo "  2. Activate venv: source venv/bin/activate"
+echo "  3. Install Python dependencies for each service"
+echo "  4. Pre-commit hooks are installed and ready"
+echo "  5. Run individual services for development"
 echo ""
 echo "Code quality:"
 echo "  - Pre-commit hooks will run automatically on 'git commit'"
@@ -101,5 +126,8 @@ echo "  - Run manually: pre-commit run --all-files"
 echo ""
 echo "To stop all services:"
 echo "  docker compose down"
+echo ""
+echo "To activate venv in future sessions:"
+echo "  source venv/bin/activate"
 echo ""
 

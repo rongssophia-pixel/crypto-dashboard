@@ -39,8 +39,10 @@ This project uses **pre-commit hooks** for automatic code quality checks:
 - **Flake8** for linting (relaxed rules)
 - **isort** for import sorting
 
-**Setup once**:
+**Setup once** (in virtual environment):
 ```bash
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install pre-commit
 pre-commit install
 ```
@@ -66,6 +68,7 @@ See [.github/workflows/](.github/workflows/) for details.
 
 - Docker & Docker Compose
 - Python 3.13+
+- Virtual environment (venv) - **Always use venv!**
 
 ### Setup
 
@@ -89,5 +92,8 @@ python main.py
 
 ## Project Structure
 
-See [crypto-analytics-platform.plan.md](crypto-analytics-platform.plan.md) for detailed architecture and implementation plan.
+See documentation:
+- [VENV_SETUP.md](VENV_SETUP.md) - Virtual environment guide
+- [GETTING_STARTED.md](docs/GETTING_STARTED.md) - Setup and development guide
+- [TICKETS.md](TICKETS.md) & [TICKETS_PART2.md](TICKETS_PART2.md) - Implementation tickets
 

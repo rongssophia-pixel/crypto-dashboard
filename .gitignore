@@ -4,9 +4,14 @@ __pycache__/
 *$py.class
 *.so
 .Python
+
+# Virtual environments (NEVER commit these)
 venv/
 env/
 ENV/
+.venv/
+
+# Build artifacts
 *.egg-info/
 dist/
 build/
