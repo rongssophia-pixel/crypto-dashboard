@@ -275,9 +275,10 @@ docker compose logs kafka
 
 ## Resources
 
-- [Plan Document](crypto-analytics-platform.plan.md) - Detailed architecture and implementation plan
-- [Proto Definitions](proto/) - gRPC service contracts
-- [Database Schemas](db/) - PostgreSQL and ClickHouse table definitions
+
+- [Code Quality Guide](CODE_QUALITY.md) - Pre-commit hooks and best practices
+- [Proto Definitions](../proto/) - gRPC service contracts
+- [Database Schemas](../db/) - PostgreSQL and ClickHouse table definitions
 
 ## Support
 

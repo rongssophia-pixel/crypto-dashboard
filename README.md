@@ -30,7 +30,7 @@ A microservices-based real-time streaming analytics platform for cryptocurrency 
 ### Implementation Status
 
 **Structure**: ✅ Complete - All directories, files, and interfaces created
-**Implementation**: 🔄 Ready - See [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) for detailed tickets
+**Implementation**: 🔄 Ready - See [TICKETS_IMPLEMENTATION_GUIDE.md](TICKETS_IMPLEMENTATION_GUIDE.md) for detailed tickets
 
 ## Code Quality
 
@@ -54,7 +54,7 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-See [CODE_QUALITY.md](CODE_QUALITY.md) for details.
+See [docs/CODE_QUALITY.md](docs/CODE_QUALITY.md) for details.
 
 ## CI/CD
 
@@ -90,10 +90,29 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## Documentation
+
+- **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** - Complete setup and development guide
+- **[docs/CODE_QUALITY.md](docs/CODE_QUALITY.md)** - Code quality tools, pre-commit hooks, and best practices
+
 ## Project Structure
 
-See documentation:
-- [VENV_SETUP.md](VENV_SETUP.md) - Virtual environment guide
-- [GETTING_STARTED.md](docs/GETTING_STARTED.md) - Setup and development guide
-- [TICKETS.md](TICKETS.md) & [TICKETS_PART2.md](TICKETS_PART2.md) - Implementation tickets
+```
+crypto-dashboard/
+├── api-gateway/           # Unified REST API with JWT auth
+├── ingestion-service/     # Data collection from Binance & Twitter
+├── stream-processing-service/  # Flink jobs for transformations
+├── analytics-service/     # ClickHouse real-time queries
+├── storage-service/       # S3 archival & Athena queries
+├── notification-service/  # Alert delivery (email, extensible)
+├── shared/               # Common utilities (auth, gRPC, Kafka)
+├── proto/                # gRPC protocol definitions
+├── db/                   # Database schemas (PostgreSQL, ClickHouse)
+├── docker-compose.yml    # Local infrastructure
+└── scripts/              # Setup and utility scripts
+```
+
+
+
+
 
