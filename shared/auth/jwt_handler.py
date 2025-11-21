@@ -85,7 +85,6 @@ class JWTHandler:
         """
         pass
 
-
 class TenantContext:
     """
     Tenant context extracted from JWT token
