@@ -7,6 +7,7 @@ uvicorn[standard]
 # gRPC
 grpcio
 grpcio-tools
+protobuf
 
 # ClickHouse
 clickhouse-driver
@@ -34,4 +35,3 @@ pre-commit
 # Testing
 pytest
 pytest-asyncio
-

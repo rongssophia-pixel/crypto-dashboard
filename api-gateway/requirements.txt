@@ -4,6 +4,7 @@ fastapi
 uvicorn[standard]
 grpcio
 grpcio-tools
+protobuf
 pydantic
 pydantic-settings
 python-jose[cryptography]
@@ -21,4 +22,3 @@ pre-commit
 pytest
 pytest-asyncio
 httpx  # For testing FastAPI endpoints
-

@@ -31,7 +31,7 @@ for proto_file in "$PROTO_DIR"/*.proto; do
     if [ -f "$proto_file" ]; then
         filename=$(basename "$proto_file")
         echo "Generating code for $filename..."
-        
+
         python3 -m grpc_tools.protoc \
             -I"$PROTO_DIR" \
             --python_out="$OUTPUT_DIR" \
@@ -43,6 +43,8 @@ done
 
 # Fix imports in generated files (replace relative imports with absolute)
 echo "Fixing imports in generated files..."
+
+# Fix .py files
 for generated_file in "$OUTPUT_DIR"/*_pb2*.py; do
     if [ -f "$generated_file" ]; then
         # This sed command works on both Linux and macOS
@@ -56,8 +58,21 @@ for generated_file in "$OUTPUT_DIR"/*_pb2*.py; do
     fi
 done
 
+# Fix .pyi files (type hints)
+for generated_file in "$OUTPUT_DIR"/*_pb2*.pyi; do
+    if [ -f "$generated_file" ]; then
+        # This sed command works on both Linux and macOS
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            sed -i '' 's/^import \(.*\)_pb2 as/from proto import \1_pb2 as/' "$generated_file"
+        else
+            # Linux
+            sed -i 's/^import \(.*\)_pb2 as/from proto import \1_pb2 as/' "$generated_file"
+        fi
+    fi
+done
+
 echo "Protocol Buffer code generation complete!"
 echo ""
 echo "Generated files:"
 ls -lh "$OUTPUT_DIR"/*_pb2*.py 2>/dev/null || echo "No generated files found"
-

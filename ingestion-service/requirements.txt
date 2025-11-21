@@ -8,6 +8,7 @@ uvicorn[standard]
 # gRPC
 grpcio
 grpcio-tools
+protobuf
 
 # Kafka
 kafka-python
@@ -47,4 +48,3 @@ pre-commit
 # Testing
 pytest
 pytest-asyncio
-

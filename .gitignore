@@ -26,7 +26,6 @@ build/
 # Environment
 .env
 .env.local
-.env.example
 
 # Docker
 *.log
@@ -63,3 +62,4 @@ monitoring/grafana/data/
 .flake8.cache
 
 TICKETS*.md
+scripts/install_and_pin_dependencies.sh

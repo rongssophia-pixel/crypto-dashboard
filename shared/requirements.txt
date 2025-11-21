@@ -11,6 +11,7 @@ passlib[bcrypt]
 # gRPC
 grpcio
 grpcio-tools
+protobuf
 
 # Kafka
 kafka-python
@@ -26,4 +27,3 @@ pytest
 pytest-asyncio
 
 # Note: Install these one at a time and pin versions in requirements_pinned.txt
-

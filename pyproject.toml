@@ -2,7 +2,7 @@
 
 [tool.black]
 line-length = 88
-target-version = ['py313']
+target-version = ['py312']  # Black doesn't support py313 yet, use py312
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -46,4 +46,3 @@ skip_glob = [
 [build-system]
 requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
-
