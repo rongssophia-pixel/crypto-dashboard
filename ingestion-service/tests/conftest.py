@@ -1,0 +1,99 @@
+"""Pytest fixtures for ingestion service tests"""
+
+import os
+import sys
+
+import pytest
+from psycopg2.pool import SimpleConnectionPool
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../shared"))
+)
+
+from connectors.binance_connector import BinanceConnector
+from kafka_utils.producer import KafkaProducerWrapper
+from repositories.kafka_repository import KafkaRepository
+from repositories.stream_repository import StreamRepository
+from services.ingestion_service import IngestionBusinessService
+
+
+@pytest.fixture(scope="session")
+def db_config():
+    """Database configuration for tests"""
+    return {
+        "host": "localhost",
+        "port": 5432,
+        "database": "crypto_dashboard",
+        "user": "postgres",
+        "password": "postgres",
+    }
+
+
+@pytest.fixture(scope="session")
+def db_pool(db_config):
+    """Create database connection pool for tests"""
+    pool = SimpleConnectionPool(minconn=1, maxconn=5, **db_config)
+    yield pool
+    pool.closeall()
+
+
+@pytest.fixture(scope="function")
+def clean_db(db_pool):
+    """Clean database before each test"""
+    conn = db_pool.getconn()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM stream_sessions;")
+        conn.commit()
+    finally:
+        db_pool.putconn(conn)
+
+
+@pytest.fixture
+def stream_repository(db_pool):
+    """Create stream repository instance"""
+    return StreamRepository(db_pool)
+
+
+@pytest.fixture
+def kafka_config():
+    """Kafka configuration for tests"""
+    return {
+        "bootstrap_servers": "localhost:9092",
+        "client_id": "test-ingestion-service",
+    }
+
+
+@pytest.fixture
+def kafka_producer(kafka_config):
+    """Create Kafka producer for tests"""
+    producer = KafkaProducerWrapper(
+        bootstrap_servers=kafka_config["bootstrap_servers"],
+        client_id=kafka_config["client_id"],
+    )
+    yield producer
+    producer.close()
+
+
+@pytest.fixture
+def kafka_repository(kafka_producer):
+    """Create Kafka repository instance"""
+    return KafkaRepository(kafka_producer)
+
+
+@pytest.fixture
+def binance_connector():
+    """Create Binance connector instance"""
+    return BinanceConnector()
+
+
+@pytest.fixture
+def ingestion_service(stream_repository, kafka_repository, binance_connector):
+    """Create ingestion business service instance"""
+    return IngestionBusinessService(
+        stream_repository=stream_repository,
+        kafka_repository=kafka_repository,
+        binance_connector=binance_connector,
+    )
