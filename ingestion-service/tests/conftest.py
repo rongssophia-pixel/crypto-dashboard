@@ -39,13 +39,38 @@ def db_pool(db_config):
     pool.closeall()
 
 
+@pytest.fixture(scope="session")
+def test_tenants(db_pool):
+    """Create test tenant records for testing"""
+    conn = db_pool.getconn()
+    try:
+        cursor = conn.cursor()
+        # Create test tenants with fixed UUIDs
+        cursor.execute(
+            """
+            INSERT INTO tenants (id, name, api_key, is_active) VALUES
+                ('11111111-1111-1111-1111-111111111111', 'Test Tenant 1', 'test-key-1', true),
+                ('22222222-2222-2222-2222-222222222222', 'Test Tenant 2', 'test-key-2', true)
+            ON CONFLICT (api_key) DO NOTHING;
+        """
+        )
+        conn.commit()
+        return {
+            "tenant1": "11111111-1111-1111-1111-111111111111",
+            "tenant2": "22222222-2222-2222-2222-222222222222",
+        }
+    finally:
+        db_pool.putconn(conn)
+
+
 @pytest.fixture(scope="function")
-def clean_db(db_pool):
-    """Clean database before each test"""
+def clean_db(db_pool, test_tenants):
+    """Clean database before each test (but keep test tenants)"""
     conn = db_pool.getconn()
     try:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM stream_sessions;")
+        # Don't delete tenants - they're reused across tests
         conn.commit()
     finally:
         db_pool.putconn(conn)
