@@ -24,7 +24,7 @@ async def test_start_stream(ingestion_service, clean_db, test_tenants):
     )
 
     assert "stream_id" in result
-    assert result["status"] == "started"
+    assert result["status"] == "active"
     assert result["symbols"] == symbols
     print(f"✓ Started stream: {result['stream_id']}")
 
@@ -50,7 +50,7 @@ async def test_stop_stream(ingestion_service, clean_db, test_tenants):
     # Stop it
     stop_result = await ingestion_service.stop_stream(stream_id, tenant_id)
 
-    assert stop_result["status"] == "stopped"
+    assert stop_result is True
     print(f"✓ Stopped stream: {stream_id}")
 
 
@@ -183,8 +183,8 @@ async def test_stop_nonexistent_stream(ingestion_service, clean_db, test_tenants
         "non-existent-id", test_tenants["tenant1"]
     )
 
-    assert "error" in result
-    print("✓ Non-existent stream stop handled gracefully")
+    assert result is False
+    print("✓ Non-existent stream stop handled gracefully (returns False)")
 
 
 @pytest.mark.asyncio
@@ -207,9 +207,10 @@ async def test_tenant_isolation(ingestion_service, clean_db, test_tenants):
     # Tenant 2 tries to access it
     status = await ingestion_service.get_stream_status(stream_id, tenant2_id)
 
-    # Should fail or return error
-    assert "error" in status or status.get("tenant_id") != tenant2_id
+    # Should fail or return error (tenant mismatch)
+    assert "error" in status or str(status.get("tenant_id")) != tenant2_id
     print("✓ Tenant isolation working correctly")
 
     # Cleanup with correct tenant
-    await ingestion_service.stop_stream(stream_id, tenant1_id)
+    result = await ingestion_service.stop_stream(stream_id, tenant1_id)
+    assert result is True
