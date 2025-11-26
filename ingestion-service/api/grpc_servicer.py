@@ -3,11 +3,13 @@ Ingestion Service gRPC Servicer
 Implements the IngestionService gRPC interface
 """
 
-import grpc
-from concurrent import futures
 import logging
+from concurrent import futures
 
-# from proto import ingestion_pb2, ingestion_pb2_grpc, common_pb2
+import grpc
+
+from proto import common_pb2, ingestion_pb2, ingestion_pb2_grpc  # noqa: F401
+
 # from services.ingestion_service import IngestionBusinessService
 
 logger = logging.getLogger(__name__)
@@ -18,25 +20,25 @@ class IngestionServiceServicer:
     gRPC servicer for Ingestion Service
     Implements ingestion_pb2_grpc.IngestionServiceServicer
     """
-    
+
     def __init__(self, business_service):
         """
         Initialize servicer with business service
-        
+
         Args:
             business_service: IngestionBusinessService instance
         """
         self.business_service = business_service
         logger.info("IngestionServiceServicer initialized")
-    
+
     async def StartDataStream(self, request, context):
         """
         Start streaming market data for given symbols
-        
+
         Args:
             request: StartStreamRequest from proto
             context: gRPC context
-            
+
         Returns:
             StartStreamResponse
         """
@@ -45,15 +47,15 @@ class IngestionServiceServicer:
         # 2. Call business service to start stream
         # 3. Return response with stream_id
         pass
-    
+
     async def StopDataStream(self, request, context):
         """
         Stop an active data stream
-        
+
         Args:
             request: StopStreamRequest from proto
             context: gRPC context
-            
+
         Returns:
             Empty
         """
@@ -62,15 +64,15 @@ class IngestionServiceServicer:
         # 2. Call business service to stop stream
         # 3. Return empty response
         pass
-    
+
     async def GetStreamStatus(self, request, context):
         """
         Get status of a running stream
-        
+
         Args:
             request: StreamStatusRequest from proto
             context: gRPC context
-            
+
         Returns:
             StreamStatusResponse
         """
@@ -79,15 +81,15 @@ class IngestionServiceServicer:
         # 2. Call business service to get status
         # 3. Return status response
         pass
-    
+
     async def FetchHistoricalData(self, request, context):
         """
         Fetch historical market data
-        
+
         Args:
             request: HistoricalDataRequest from proto
             context: gRPC context
-            
+
         Returns:
             HistoricalDataResponse
         """
@@ -101,7 +103,7 @@ class IngestionServiceServicer:
 async def serve(port: int, business_service):
     """
     Start the gRPC server
-    
+
     Args:
         port: Port to listen on
         business_service: Business service instance
@@ -110,7 +112,7 @@ async def serve(port: int, business_service):
     # ingestion_pb2_grpc.add_IngestionServiceServicer_to_server(
     #     IngestionServiceServicer(business_service), server
     # )
-    server.add_insecure_port(f'[::]:{port}')
+    server.add_insecure_port(f"[::]:{port}")
     await server.start()
     logger.info(f"gRPC server started on port {port}")
     await server.wait_for_termination()
@@ -120,4 +122,3 @@ async def serve(port: int, business_service):
 # TODO: Add request validation
 # TODO: Add logging and metrics
 # TODO: Add authentication check from metadata
-
