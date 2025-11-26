@@ -33,7 +33,7 @@ docker exec -i crypto-postgres psql -U postgres -d crypto_dashboard < ingestion-
 
 ```bash
 cd /Users/yuyu/workspace/crypto-dashboard
-source shared/venv/bin/activate
+source ingestion-service/venv/bin/activate
 pip install pytest pytest-asyncio
 ```
 
@@ -42,6 +42,8 @@ pip install pytest pytest-asyncio
 ### Run All Tests
 
 ```bash
+cd /Users/yuyu/workspace/crypto-dashboard
+source ingestion-service/venv/bin/activate
 python -m pytest ingestion-service/tests/ -v
 ```
 
@@ -187,10 +189,10 @@ docker exec -i crypto-postgres psql -U postgres -d crypto_dashboard < ingestion-
 ModuleNotFoundError: No module named 'repositories'
 ```
 
-**Solution**: Make sure you're running from the project root and venv is activated:
+**Solution**: Make sure you're running from the project root and the **ingestion-service venv** is activated:
 ```bash
 cd /Users/yuyu/workspace/crypto-dashboard
-source shared/venv/bin/activate
+source ingestion-service/venv/bin/activate
 python -m pytest ingestion-service/tests/ -v
 ```
 
@@ -215,11 +217,11 @@ docker exec -i crypto-postgres psql -U postgres -c "CREATE DATABASE IF NOT EXIST
 # Apply schema
 docker exec -i crypto-postgres psql -U postgres -d crypto_dashboard < ingestion-service/tests/setup_test_db.sql
 
-# Activate venv
-source shared/venv/bin/activate
+# Activate ingestion-service venv
+source ingestion-service/venv/bin/activate
 
 # Install test dependencies
-pip install pytest pytest-asyncio
+pip install pytest pytest-asyncio psycopg2-binary
 
 # Run tests
 python -m pytest ingestion-service/tests/ -v -s
