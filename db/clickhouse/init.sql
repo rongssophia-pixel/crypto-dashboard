@@ -80,70 +80,6 @@ SETTINGS index_granularity = 8192;
 CREATE INDEX IF NOT EXISTS idx_alerts_timestamp ON alert_events(timestamp) TYPE minmax GRANULARITY 4;
 CREATE INDEX IF NOT EXISTS idx_alerts_symbol ON alert_events(symbol) TYPE set(100) GRANULARITY 4;
 
--- Materialized view for 1-minute aggregations (real-time)
-CREATE MATERIALIZED VIEW IF NOT EXISTS market_data_1m_mv
-ENGINE = MergeTree()
-PARTITION BY toYYYYMM(timestamp)
-ORDER BY (tenant_id, symbol, timestamp)
-AS SELECT
-    tenant_id,
-    toStartOfMinute(timestamp) AS timestamp,
-    symbol,
-    exchange,
-    argMin(price, timestamp) AS open,
-    max(price) AS high,
-    min(price) AS low,
-    argMax(price, timestamp) AS close,
-    sum(volume) AS volume,
-    count() AS trade_count,
-    avg(price) AS avg_price,
-    stddevPop(price) AS price_stddev
-FROM market_data
-GROUP BY tenant_id, symbol, exchange, toStartOfMinute(timestamp);
-
--- Materialized view for 5-minute aggregations
-CREATE MATERIALIZED VIEW IF NOT EXISTS market_data_5m_mv
-ENGINE = MergeTree()
-PARTITION BY toYYYYMM(timestamp)
-ORDER BY (tenant_id, symbol, timestamp)
-AS SELECT
-    tenant_id,
-    toStartOfFiveMinutes(timestamp) AS timestamp,
-    symbol,
-    exchange,
-    argMin(price, timestamp) AS open,
-    max(price) AS high,
-    min(price) AS low,
-    argMax(price, timestamp) AS close,
-    sum(volume) AS volume,
-    count() AS trade_count,
-    avg(price) AS avg_price,
-    stddevPop(price) AS price_stddev
-FROM market_data
-GROUP BY tenant_id, symbol, exchange, toStartOfFiveMinutes(timestamp);
-
--- Materialized view for hourly aggregations
-CREATE MATERIALIZED VIEW IF NOT EXISTS market_data_1h_mv
-ENGINE = MergeTree()
-PARTITION BY toYYYYMM(timestamp)
-ORDER BY (tenant_id, symbol, timestamp)
-AS SELECT
-    tenant_id,
-    toStartOfHour(timestamp) AS timestamp,
-    symbol,
-    exchange,
-    argMin(price, timestamp) AS open,
-    max(price) AS high,
-    min(price) AS low,
-    argMax(price, timestamp) AS close,
-    sum(volume) AS volume,
-    count() AS trade_count,
-    avg(price) AS avg_price,
-    stddevPop(price) AS price_stddev,
-    (max(price) - min(price)) / min(price) * 100 AS volatility_pct
-FROM market_data
-GROUP BY tenant_id, symbol, exchange, toStartOfHour(timestamp);
-
 -- Table for tracking data quality metrics
 CREATE TABLE IF NOT EXISTS data_quality_metrics (
     tenant_id UUID,
@@ -158,6 +94,10 @@ CREATE TABLE IF NOT EXISTS data_quality_metrics (
 PARTITION BY toYYYYMM(timestamp)
 ORDER BY (tenant_id, timestamp, symbol)
 SETTINGS index_granularity = 8192;
+
+-- Note: Materialized views for aggregations are handled by the stream-processing-service
+-- which provides more flexibility and control over the aggregation logic.
+-- The service writes directly to market_candles table.
 
 -- TTL policies for data retention (30 days for hot storage)
 -- Uncomment to enable automatic data cleanup
@@ -191,4 +131,3 @@ SETTINGS index_granularity = 8192;
 -- WHERE tenant_id = 'xxx' AND timestamp >= now() - INTERVAL 24 HOUR
 -- GROUP BY symbol, hour
 -- ORDER BY hour DESC;
-

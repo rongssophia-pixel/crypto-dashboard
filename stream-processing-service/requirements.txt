@@ -1,17 +1,35 @@
 # Stream Processing Service Dependencies
 
+# Core framework
 fastapi
 uvicorn[standard]
+
+# gRPC
 grpcio
 grpcio-tools
 protobuf
+
+# Kafka
+kafka-python
+
+# ClickHouse
+clickhouse-driver
+
+# Data validation
 pydantic
 pydantic-settings
+
+# Authentication
 python-jose[cryptography]
+
+# Monitoring
 prometheus-client
-apache-flink
-boto3
-kafka-python
+
+# Database (for alert subscriptions)
+psycopg2-binary
+
+# Utilities
+python-dateutil
 
 # Development tools
 flake8

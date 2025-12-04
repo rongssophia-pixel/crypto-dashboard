@@ -25,42 +25,63 @@ class KafkaConsumerWrapper:
     ):
         self.topics = topics
         self.bootstrap_servers = bootstrap_servers
+        self.group_id = group_id
+        self.auto_offset_reset = auto_offset_reset
+        self.enable_auto_commit = enable_auto_commit
+        self._running = False
+        self.consumer: Optional[KafkaConsumer] = None
+        
+    def _create_consumer(self):
+        """Create the Kafka consumer instance"""
         self.consumer = KafkaConsumer(
-            *topics,
-            bootstrap_servers=bootstrap_servers.split(","),
-            group_id=group_id,
-            auto_offset_reset=auto_offset_reset,
-            enable_auto_commit=enable_auto_commit,
+            *self.topics,
+            bootstrap_servers=self.bootstrap_servers.split(","),
+            group_id=self.group_id,
+            auto_offset_reset=self.auto_offset_reset,
+            enable_auto_commit=self.enable_auto_commit,
             value_deserializer=lambda m: json.loads(m.decode("utf-8")),
             key_deserializer=lambda k: k.decode("utf-8") if k else None,
+            consumer_timeout_ms=1000,  # Allow checking _running flag
         )
-        logger.info(f"Kafka consumer initialized: {group_id} subscribed to {topics}")
+        logger.info(f"Kafka consumer created: {self.group_id} subscribed to {self.topics}")
 
     def consume(
         self,
         handler: Callable[[Dict[str, Any]], None],
         max_messages: Optional[int] = None,
-        timeout_ms: int = 1000,
     ):
-        """Consume messages and process with handler"""
+        """
+        Consume messages and process with handler.
+        This is a blocking call - run in a thread for async usage.
+        """
+        if not self.consumer:
+            self._create_consumer()
+            
         message_count = 0
+        self._running = True
 
         try:
-            for message in self.consumer:
-                try:
-                    # Process message
-                    handler(message.value)
-                    message_count += 1
+            while self._running:
+                # Poll with timeout to allow checking _running flag
+                messages = self.consumer.poll(timeout_ms=1000)
+                
+                for tp, records in messages.items():
+                    for message in records:
+                        if not self._running:
+                            break
+                        try:
+                            handler(message.value)
+                            message_count += 1
 
-                    if max_messages and message_count >= max_messages:
-                        break
+                            if max_messages and message_count >= max_messages:
+                                self._running = False
+                                break
 
-                except Exception as e:
-                    logger.error(f"Error processing message: {e}", exc_info=True)
-                    # Continue processing other messages
+                        except Exception as e:
+                            logger.error(f"Error processing message: {e}", exc_info=True)
 
-        except KeyboardInterrupt:
-            logger.info("Consumer interrupted by user")
+        except Exception as e:
+            logger.error(f"Consumer error: {e}", exc_info=True)
         finally:
             logger.info(f"Processed {message_count} messages")
 
@@ -68,6 +89,9 @@ class KafkaConsumerWrapper:
         self, batch_size: int = 100, timeout_ms: int = 1000
     ) -> List[Dict[str, Any]]:
         """Consume a batch of messages"""
+        if not self.consumer:
+            self._create_consumer()
+            
         messages = []
 
         try:
@@ -84,12 +108,21 @@ class KafkaConsumerWrapper:
 
     def commit(self):
         """Manually commit current offsets"""
-        self.consumer.commit()
+        if self.consumer:
+            self.consumer.commit()
 
     def close(self):
         """Close the consumer"""
-        self.consumer.close()
+        self._running = False
+        if self.consumer:
+            self.consumer.close()
+            self.consumer = None
         logger.info("Kafka consumer closed")
+    
+    @property
+    def is_running(self) -> bool:
+        """Check if consumer is running"""
+        return self._running
 
 
 class MarketDataConsumer:
@@ -102,11 +135,9 @@ class MarketDataConsumer:
     ):
         self.consumer = consumer
         self.message_handler = message_handler
-        self.running = False
 
     def start(self):
-        """Start consuming market data messages"""
-        self.running = True
+        """Start consuming market data messages (blocking)"""
         logger.info("MarketDataConsumer started")
 
         try:
@@ -117,12 +148,15 @@ class MarketDataConsumer:
 
     def stop(self):
         """Stop consuming messages"""
-        self.running = False
         self.consumer.close()
         logger.info("MarketDataConsumer stopped")
+    
+    @property
+    def is_running(self) -> bool:
+        """Check if consumer is running"""
+        return self.consumer.is_running
 
 
-# TODO: Implement Kafka consumer wrapper
 # TODO: Add automatic error handling and retry
 # TODO: Add dead letter queue for failed messages
 # TODO: Add metrics for monitoring

@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     
     # Service info
     service_name: str = "ingestion-service"
-    service_port: int = 50051
+    service_port: int = 50051  # gRPC port
+    http_port: int = 8001  # FastAPI HTTP port for monitoring
     
     # Kafka configuration
     kafka_bootstrap_servers: str

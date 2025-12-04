@@ -61,7 +61,8 @@ services:
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      CLICKHOUSE_ALLOW_EMPTY_PASSWORD: 1
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - ./db/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -149,18 +150,23 @@ services:
   #     - storage-service
   #     - notification-service
 
-  # ingestion-service:
-  #   build:
-  #     context: .
-  #     dockerfile: ingestion-service/Dockerfile
-  #   container_name: crypto-ingestion-service
-  #   ports:
-  #     - "50051:50051"
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     - postgres
-  #     - kafka
+  ingestion-service:
+    build:
+      context: .
+      dockerfile: ingestion-service/Dockerfile
+    container_name: crypto-ingestion-service
+    ports:
+      - "50051:50051"  # gRPC
+      - "8001:8001"    # FastAPI HTTP (health, metrics, docs)
+    env_file:
+      - .env
+    environment:
+      # Override for Docker networking (use service names, not localhost)
+      POSTGRES_HOST: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+    depends_on:
+      - postgres
+      - kafka
 
   # analytics-service:
   #   build:
@@ -199,18 +205,27 @@ services:
   #     - postgres
   #     - kafka
 
-  # stream-processing-service:
-  #   build:
-  #     context: .
-  #     dockerfile: stream-processing-service/Dockerfile
-  #   container_name: crypto-stream-processing
-  #   ports:
-  #     - "50055:50055"
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     - kafka
-  #     - clickhouse
+  stream-processing-service:
+    build:
+      context: .
+      dockerfile: stream-processing-service/Dockerfile
+    container_name: crypto-stream-processing
+    ports:
+      - "50055:50055"  # gRPC (reserved for future)
+      - "8005:8005"    # FastAPI HTTP (health, metrics, stats)
+    env_file:
+      - .env
+    environment:
+      # Override for Docker networking (use service names, not localhost)
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "9000"
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+    depends_on:
+      - kafka
+      - clickhouse
+      - ingestion-service
 
 volumes:
   kafka-data:

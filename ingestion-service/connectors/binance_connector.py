@@ -415,6 +415,26 @@ class BinanceConnector:
                 await asyncio.sleep(reconnect_delay)
                 reconnect_delay = min(reconnect_delay * 2, max_reconnect_delay)
 
+    async def close(self):
+        """
+        Close all active WebSocket connections
+        
+        Cancels all active connection tasks and cleans up resources.
+        """
+        logger.info(f"Closing BinanceConnector with {len(self.active_connections)} active connections...")
+        
+        # Get list of connection IDs to avoid modification during iteration
+        connection_ids = list(self.active_connections.keys())
+        
+        # Stop all active streams
+        for connection_id in connection_ids:
+            try:
+                await self.stop_stream(connection_id)
+            except Exception as e:
+                logger.error(f"Error stopping stream {connection_id}: {e}")
+        
+        logger.info("BinanceConnector closed")
+
 
 # TODO: Add error handling and retry logic
 # TODO: Add rate limiting for REST API
