@@ -8,11 +8,10 @@ message Timestamp {
   int32 nanos = 2;
 }
 
-// Tenant context for multi-tenancy
-message TenantContext {
-  string tenant_id = 1;
-  string user_id = 2;
-  repeated string roles = 3;
+// User context for authentication/authorization
+message UserContext {
+  string user_id = 1;
+  repeated string roles = 2;
 }
 
 // Empty response message
@@ -24,4 +23,3 @@ message Status {
   string message = 2;
   int32 code = 3;
 }
-

@@ -20,7 +20,7 @@ service AnalyticsService {
 }
 
 message QueryRequest {
-  common.TenantContext context = 1;
+  common.UserContext context = 1;
   repeated string symbols = 2;
   common.Timestamp start_time = 3;
   common.Timestamp end_time = 4;
@@ -46,7 +46,7 @@ message MarketDataPoint {
 }
 
 message CandleRequest {
-  common.TenantContext context = 1;
+  common.UserContext context = 1;
   string symbol = 2;
   string interval = 3;  // 1m, 5m, 15m, 1h, 4h, 1d
   common.Timestamp start_time = 4;
@@ -70,7 +70,7 @@ message Candle {
 }
 
 message AggregationRequest {
-  common.TenantContext context = 1;
+  common.UserContext context = 1;
   string symbol = 2;
   repeated string metric_types = 3;  // avg_price, total_volume, volatility, price_change_pct
   common.Timestamp start_time = 4;
@@ -90,7 +90,7 @@ message TimeSeriesPoint {
 }
 
 message StreamRequest {
-  common.TenantContext context = 1;
+  common.UserContext context = 1;
   repeated string symbols = 2;
   bool include_trades = 3;
   bool include_orderbook = 4;
@@ -103,4 +103,3 @@ message MarketDataEvent {
   double volume = 4;
   string event_type = 5;  // ticker, trade, orderbook_update
 }
-

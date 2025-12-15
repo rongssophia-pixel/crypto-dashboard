@@ -10,8 +10,7 @@ stub = ingestion_pb2_grpc.IngestionServiceStub(channel)
 
 # Start a ticker stream
 request = ingestion_pb2.StartStreamRequest(
-    context=common_pb2.TenantContext(
-        tenant_id="11111111-1111-1111-1111-111111111111",
+    context=common_pb2.UserContext(
         user_id="22222222-2222-2222-2222-222222222222"
     ),
     symbols=["BTCUSDT", "ETHUSDT"],

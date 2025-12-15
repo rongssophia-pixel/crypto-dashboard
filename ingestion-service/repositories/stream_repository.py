@@ -29,7 +29,6 @@ class StreamRepository:
 
     async def create_stream(
         self,
-        tenant_id: str,
         stream_id: str,
         symbols: List[str],
         exchange: str,
@@ -43,11 +42,11 @@ class StreamRepository:
                 cursor.execute(
                     """
                     INSERT INTO stream_sessions (
-                        tenant_id, stream_id, symbols, exchange, stream_type, status, started_at
-                    ) VALUES (%s, %s, %s, %s, %s, 'active', CURRENT_TIMESTAMP)
+                        stream_id, symbols, exchange, stream_type, status, started_at
+                    ) VALUES (%s, %s, %s, %s, 'active', CURRENT_TIMESTAMP)
                     RETURNING *
                 """,
-                    (tenant_id, stream_id, symbols, exchange, stream_type),
+                    (stream_id, symbols, exchange, stream_type),
                 )
 
                 conn.commit()
@@ -145,8 +144,8 @@ class StreamRepository:
         finally:
             self._release_connection(conn)
 
-    async def list_active_streams(self, tenant_id: str) -> List[Dict[str, Any]]:
-        """List all active streams for a tenant"""
+    async def list_active_streams(self) -> List[Dict[str, Any]]:
+        """List all active streams"""
         conn = self._get_connection()
 
         try:
@@ -154,10 +153,9 @@ class StreamRepository:
                 cursor.execute(
                     """
                     SELECT * FROM stream_sessions
-                    WHERE tenant_id = %s AND status = 'active'
+                    WHERE status = 'active'
                     ORDER BY started_at DESC
-                """,
-                    (tenant_id,),
+                """
                 )
 
                 records = cursor.fetchall()
@@ -191,9 +189,3 @@ class StreamRepository:
             return False
         finally:
             self._release_connection(conn)
-
-
-# TODO: Add error handling
-# TODO: Add transaction management
-# TODO: Add query optimization
-# TODO: Add multi-tenancy filtering

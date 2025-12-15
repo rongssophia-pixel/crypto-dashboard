@@ -2,19 +2,27 @@
 gRPC Client Factory
 Creates and manages gRPC client connections to microservices
 """
+
 import logging
-from typing import Optional, Any, Dict
+from typing import Any, Dict, Optional
+
 import grpc
 
-from proto import ingestion_pb2_grpc, analytics_pb2_grpc, storage_pb2_grpc, notification_pb2_grpc
+from proto import (
+    analytics_pb2_grpc,
+    ingestion_pb2_grpc,
+    notification_pb2_grpc,
+    storage_pb2_grpc,
+)
 
 logger = logging.getLogger(__name__)
+
 
 class GRPCClientFactory:
     """
     Factory for creating gRPC client stubs with connection pooling
     """
-    
+
     def __init__(self):
         """Initialize the client factory with connection pool"""
         self._channels: Dict[str, grpc.Channel] = {}
@@ -29,12 +37,12 @@ class GRPCClientFactory:
             channel = grpc.insecure_channel(
                 key,
                 options=[
-                    ('grpc.keepalive_time_ms', 30000),
-                    ('grpc.keepalive_timeout_ms', 10000),
-                    ('grpc.keepalive_permit_without_calls', True),
-                    ('grpc.max_send_message_length', 10 * 1024 * 1024),  # 10MB
-                    ('grpc.max_receive_message_length', 10 * 1024 * 1024),  # 10MB
-                ]
+                    ("grpc.keepalive_time_ms", 30000),
+                    ("grpc.keepalive_timeout_ms", 10000),
+                    ("grpc.keepalive_permit_without_calls", True),
+                    ("grpc.max_send_message_length", 10 * 1024 * 1024),  # 10MB
+                    ("grpc.max_receive_message_length", 10 * 1024 * 1024),  # 10MB
+                ],
             )
             self._channels[key] = channel
             logger.info(f"Created new gRPC channel: {key}")
@@ -44,11 +52,11 @@ class GRPCClientFactory:
     def get_ingestion_client(self, host: str, port: int):
         """
         Get or create an Ingestion Service client
-        
+
         Args:
             host: Service host
             port: Service port
-            
+
         Returns:
             IngestionServiceStub
         """
@@ -57,18 +65,18 @@ class GRPCClientFactory:
         if key not in self._stubs:
             channel = self._get_or_create_channel(host, port)
             self._stubs[key] = ingestion_pb2_grpc.IngestionServiceStub(channel)
-            logger.info(f"Created IngestionService stub")
+            logger.info("Created IngestionService stub")
 
         return self._stubs[key]
-    
+
     def get_analytics_client(self, host: str, port: int):
         """
         Get or create an Analytics Service client
-        
+
         Args:
             host: Service host
             port: Service port
-            
+
         Returns:
             AnalyticsServiceStub
         """
@@ -77,18 +85,18 @@ class GRPCClientFactory:
         if key not in self._stubs:
             channel = self._get_or_create_channel(host, port)
             self._stubs[key] = analytics_pb2_grpc.AnalyticsServiceStub(channel)
-            logger.info(f"Created AnalyticsService stub")
+            logger.info("Created AnalyticsService stub")
 
         return self._stubs[key]
-    
+
     def get_storage_client(self, host: str, port: int):
         """
         Get or create a Storage Service client
-        
+
         Args:
             host: Service host
             port: Service port
-            
+
         Returns:
             StorageServiceStub
         """
@@ -97,18 +105,18 @@ class GRPCClientFactory:
         if key not in self._stubs:
             channel = self._get_or_create_channel(host, port)
             self._stubs[key] = storage_pb2_grpc.StorageServiceStub(channel)
-            logger.info(f"Created StorageService stub")
+            logger.info("Created StorageService stub")
 
         return self._stubs[key]
-    
+
     def get_notification_client(self, host: str, port: int):
         """
         Get or create a Notification Service client
-        
+
         Args:
             host: Service host
             port: Service port
-            
+
         Returns:
             NotificationServiceStub
         """
@@ -117,10 +125,10 @@ class GRPCClientFactory:
         if key not in self._stubs:
             channel = self._get_or_create_channel(host, port)
             self._stubs[key] = notification_pb2_grpc.NotificationServiceStub(channel)
-            logger.info(f"Created NotificationService stub")
+            logger.info("Created NotificationService stub")
 
         return self._stubs[key]
-    
+
     def close_all(self):
         """Close all open gRPC channels"""
         for key, channel in self._channels.items():
@@ -135,16 +143,16 @@ class GRPCInterceptor(grpc.UnaryUnaryClientInterceptor):
     """
     gRPC client interceptor for adding metadata (auth, tracing, etc.)
     """
-    
-    def __init__(self, tenant_context: Optional[Any] = None):
+
+    def __init__(self, user_context: Optional[Any] = None):
         """
         Initialize interceptor
-        
+
         Args:
-            tenant_context: Optional tenant context for multi-tenancy
+            user_context: Optional user context for auth
         """
-        self.tenant_context = tenant_context
-    
+        self.user_context = user_context
+
     def intercept_unary_unary(self, continuation, client_call_details, request):
         """
         Intercept unary-unary calls to add metadata
@@ -154,15 +162,17 @@ class GRPCInterceptor(grpc.UnaryUnaryClientInterceptor):
         if client_call_details.metadata is not None:
             metadata = list(client_call_details.metadata)
 
-        # Add tenant context to metadata
-        if self.tenant_context:
-            metadata.append(('tenant-id', self.tenant_context.tenant_id))
-            metadata.append(('user-id', self.tenant_context.user_id))
+        # Add user context to metadata
+        if self.user_context:
+            metadata.append(("user-id", self.user_context.user_id))
+            # Roles might need special serialization if it's a list, but often sent as comma-separated
+            # or multiple entries. For simplicity here assuming user_id is the primary auth token.
 
         # Add request ID for tracing
         import uuid
+
         request_id = str(uuid.uuid4())
-        metadata.append(('request-id', request_id))
+        metadata.append(("request-id", request_id))
 
         # Create new client call details with updated metadata
         new_details = grpc._interceptor._ClientCallDetails(
@@ -175,4 +185,3 @@ class GRPCInterceptor(grpc.UnaryUnaryClientInterceptor):
         )
 
         return continuation(new_details, request)
-

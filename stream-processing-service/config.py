@@ -18,14 +18,18 @@ class Settings(BaseSettings):
     http_port: int = 8005  # FastAPI HTTP port for monitoring
     
     # Kafka Consumer
-    kafka_bootstrap_servers: str
+    # Local development: localhost:9092
+    # Docker deployment: override with KAFKA_BOOTSTRAP_SERVERS=kafka:19092
+    kafka_bootstrap_servers: str = "localhost:9092"
     kafka_consumer_group: str = "stream-processing-group"
     kafka_topic_raw_market_data: str = "crypto.raw.market-data"
     kafka_topic_processed_market_data: str = "crypto.processed.market-data"
     kafka_topic_alerts: str = "crypto.alerts"
     
     # ClickHouse
-    clickhouse_host: str
+    # Local development: localhost
+    # Docker deployment: override with CLICKHOUSE_HOST=clickhouse
+    clickhouse_host: str = "localhost"
     clickhouse_port: int = 9000
     clickhouse_db: str
     clickhouse_user: str = "default"

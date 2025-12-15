@@ -53,12 +53,10 @@ class CandleBuffer:
         symbol: str,
         interval: str,
         candle_timestamp: int,
-        tenant_id: str = "",
         exchange: str = "binance"
     ) -> Dict[str, Any]:
         """Convert buffer to candle dict"""
         return {
-            "tenant_id": tenant_id,
             "symbol": symbol,
             "exchange": exchange,
             "interval": interval,
@@ -153,7 +151,6 @@ class CandleAggregationJob:
             price = float(data.get("price", 0))
             volume = float(data.get("volume", 0))
             timestamp = data.get("timestamp", 0)
-            tenant_id = data.get("tenant_id", "")
             exchange = data.get("exchange", "binance")
             
             if not symbol or not price:
@@ -176,7 +173,6 @@ class CandleAggregationJob:
                     volume=volume,
                     timestamp_s=timestamp_s,
                     timestamp_ms=timestamp,
-                    tenant_id=tenant_id,
                     exchange=exchange,
                 )
                 
@@ -191,7 +187,6 @@ class CandleAggregationJob:
         volume: float,
         timestamp_s: int,
         timestamp_ms: int,
-        tenant_id: str,
         exchange: str,
     ):
         """Process tick for a specific interval"""
@@ -208,7 +203,6 @@ class CandleAggregationJob:
                 symbol=symbol,
                 interval=interval,
                 candle_timestamp=current_ts * 1000,  # Convert to ms
-                tenant_id=tenant_id,
                 exchange=exchange,
             )
             await self._emit_candle(candle)
@@ -246,7 +240,6 @@ class CandleAggregationJob:
                         symbol=symbol,
                         interval=interval,
                         candle_timestamp=current_ts * 1000,
-                        tenant_id="",  # Unknown at this point
                         exchange="binance",
                     )
                     await self._emit_candle(candle)
@@ -269,4 +262,3 @@ class CandleAggregationJob:
             "buffer_details": buffer_stats,
             "is_running": self._running,
         }
-

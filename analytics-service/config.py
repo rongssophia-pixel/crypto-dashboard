@@ -9,21 +9,34 @@ class Settings(BaseSettings):
     """Service configuration settings"""
     
     service_name: str = "analytics-service"
-    service_port: int = 50052
+    service_port: int = 50052  # gRPC port
+    http_port: int = 8002  # FastAPI HTTP port
     
     # ClickHouse configuration
-    clickhouse_host: str
+    # Local development: localhost
+    # Docker deployment: override with CLICKHOUSE_HOST=clickhouse
+    clickhouse_host: str = "localhost"
     clickhouse_port: int = 9000
-    clickhouse_db: str
+    clickhouse_db: str = "crypto_analytics"
     clickhouse_user: str = "default"
     clickhouse_password: str = ""
     
     # JWT configuration
-    jwt_secret_key: str
+    jwt_secret_key: str = "dev-secret-key-change-in-production"
     jwt_algorithm: str = "HS256"
     
     # Monitoring
     prometheus_port: int = 9102
+    
+    # Query defaults
+    default_query_limit: int = 1000
+    max_query_limit: int = 10000
+    default_candle_limit: int = 500
+    max_candle_limit: int = 5000
+    
+    # Cache configuration
+    cache_enabled: bool = True
+    cache_ttl_seconds: int = 60
     
     class Config:
         env_file = ".env"
@@ -31,4 +44,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

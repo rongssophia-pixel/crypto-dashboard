@@ -6,15 +6,12 @@ Writes processed market data to ClickHouse tables
 import asyncio
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from clickhouse_driver import Client
 
 logger = logging.getLogger(__name__)
-
-# Default UUID for records without tenant_id
-DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000000")
 
 
 class ClickHouseSink:
@@ -143,18 +140,6 @@ class ClickHouseSink:
             await self._flush_market_data()
             await self._flush_candles()
     
-    def _parse_uuid(self, value: Any) -> uuid.UUID:
-        """Parse tenant_id to UUID, handling various formats"""
-        if isinstance(value, uuid.UUID):
-            return value
-        if isinstance(value, str) and value:
-            try:
-                return uuid.UUID(value)
-            except ValueError:
-                logger.warning(f"Invalid UUID format: {value}, using default")
-                return DEFAULT_TENANT_ID
-        return DEFAULT_TENANT_ID
-    
     async def _flush_market_data(self):
         """Flush market data buffer to ClickHouse"""
         if not self._market_data_buffer or not self.client:
@@ -168,7 +153,6 @@ class ClickHouseSink:
             rows = []
             for record in records:
                 rows.append((
-                    self._parse_uuid(record.get("tenant_id")),
                     self._parse_timestamp(record.get("timestamp")),
                     record.get("symbol", ""),
                     record.get("exchange", "binance"),
@@ -191,7 +175,7 @@ class ClickHouseSink:
             self.client.execute(
                 """
                 INSERT INTO market_data (
-                    tenant_id, timestamp, symbol, exchange, price, volume,
+                    timestamp, symbol, exchange, price, volume,
                     bid_price, ask_price, bid_volume, ask_volume,
                     high_24h, low_24h, volume_24h, price_change_24h,
                     price_change_pct_24h, trade_count, metadata
@@ -224,7 +208,6 @@ class ClickHouseSink:
             rows = []
             for candle in records:
                 rows.append((
-                    self._parse_uuid(candle.get("tenant_id")),
                     self._parse_timestamp(candle.get("timestamp")),
                     candle.get("symbol", ""),
                     candle.get("exchange", "binance"),
@@ -243,7 +226,7 @@ class ClickHouseSink:
             self.client.execute(
                 """
                 INSERT INTO market_candles (
-                    tenant_id, timestamp, symbol, exchange, interval,
+                    timestamp, symbol, exchange, interval,
                     open, high, low, close, volume, quote_volume,
                     trade_count, taker_buy_volume, taker_buy_quote_volume
                 ) VALUES
@@ -280,13 +263,13 @@ class ClickHouseSink:
             # Assume milliseconds if > 1e12
             if ts > 1e12:
                 ts = ts / 1000
-            return datetime.fromtimestamp(ts)
+            return datetime.fromtimestamp(ts, tz=timezone.utc)
         if isinstance(ts, str):
             try:
                 return datetime.fromisoformat(ts.replace("Z", "+00:00"))
             except ValueError:
-                return datetime.utcnow()
-        return datetime.utcnow()
+                return datetime.now(timezone.utc)
+        return datetime.now(timezone.utc)
     
     def get_stats(self) -> Dict[str, Any]:
         """Get sink statistics"""

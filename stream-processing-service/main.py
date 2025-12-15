@@ -66,13 +66,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         await app_state.clickhouse_sink.start()
         logger.info("✅ ClickHouse sink initialized")
         
-        # 2. Initialize Kafka consumer (using shared module)
+        # 2. Initialize Kafka consumer
         logger.info("Initializing Kafka consumer...")
         app_state.kafka_consumer = KafkaConsumerWrapper(
             topics=[settings.kafka_topic_raw_market_data],
             bootstrap_servers=settings.kafka_bootstrap_servers,
             group_id=settings.kafka_consumer_group,
-            auto_offset_reset="latest",
+            auto_offset_reset="earliest",  # Changed from "latest" to process all messages
         )
         logger.info("✅ Kafka consumer initialized")
         

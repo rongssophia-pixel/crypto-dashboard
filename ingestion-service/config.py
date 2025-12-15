@@ -18,12 +18,16 @@ class Settings(BaseSettings):
     http_port: int = 8001  # FastAPI HTTP port for monitoring
     
     # Kafka configuration
-    kafka_bootstrap_servers: str
+    # Local development: localhost:9092
+    # Docker deployment: override with KAFKA_BOOTSTRAP_SERVERS=kafka:19092
+    kafka_bootstrap_servers: str = "localhost:9092"
     kafka_topic_raw_market_data: str = "crypto.raw.market-data"
     kafka_topic_processed_market_data: str = "crypto.processed.market-data"
     
     # PostgreSQL configuration
-    postgres_host: str
+    # Local development: localhost
+    # Docker deployment: override with POSTGRES_HOST=postgres
+    postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_db: str
     postgres_user: str

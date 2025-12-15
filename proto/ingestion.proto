@@ -20,7 +20,7 @@ service IngestionService {
 }
 
 message StartStreamRequest {
-  common.TenantContext context = 1;
+  common.UserContext context = 1;
   repeated string symbols = 2;  // e.g., ["BTCUSDT", "ETHUSDT"]
   string exchange = 3;           // e.g., "binance"
   string stream_type = 4;        // e.g., "ticker", "trade", "kline"
@@ -35,12 +35,12 @@ message StartStreamResponse {
 
 message StopStreamRequest {
   string stream_id = 1;
-  common.TenantContext context = 2;
+  common.UserContext context = 2;
 }
 
 message StreamStatusRequest {
   string stream_id = 1;
-  common.TenantContext context = 2;
+  common.UserContext context = 2;
 }
 
 message StreamStatusResponse {
@@ -53,7 +53,7 @@ message StreamStatusResponse {
 }
 
 message HistoricalDataRequest {
-  common.TenantContext context = 1;
+  common.UserContext context = 1;
   string symbol = 2;
   string exchange = 3;
   common.Timestamp start_time = 4;
@@ -78,4 +78,3 @@ message MarketDataPoint {
   double low_24h = 8;
   map<string, string> metadata = 9;
 }
-

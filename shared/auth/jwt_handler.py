@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 class JWTHandler:
     """
     Interface for JWT token operations
-    Supports multi-tenant authentication with tenant_id in claims
     """
     
     def __init__(self, secret_key: str, algorithm: str = "HS256", expiration_minutes: int = 60):
@@ -27,7 +26,6 @@ class JWTHandler:
     def create_access_token(
         self, 
         user_id: str, 
-        tenant_id: str, 
         roles: list[str],
         additional_claims: Optional[Dict[str, Any]] = None
     ) -> str:
@@ -36,7 +34,6 @@ class JWTHandler:
         
         Args:
             user_id: User identifier
-            tenant_id: Tenant identifier for multi-tenancy
             roles: List of user roles
             additional_claims: Optional additional claims to include
             
@@ -85,22 +82,20 @@ class JWTHandler:
         """
         pass
 
-class TenantContext:
+class UserContext:
     """
-    Tenant context extracted from JWT token
-    Used for multi-tenant isolation throughout the application
+    User context extracted from JWT token
+    Used for authentication throughout the application
     """
     
-    def __init__(self, tenant_id: str, user_id: str, roles: list[str]):
+    def __init__(self, user_id: str, roles: list[str]):
         """
-        Initialize tenant context
+        Initialize user context
         
         Args:
-            tenant_id: Tenant identifier
             user_id: User identifier
             roles: User roles
         """
-        self.tenant_id = tenant_id
         self.user_id = user_id
         self.roles = roles
     
@@ -117,4 +112,3 @@ class TenantContext:
 # TODO: Add token refresh mechanism
 # TODO: Add role-based access control checks
 # TODO: Integrate with python-jose library
-

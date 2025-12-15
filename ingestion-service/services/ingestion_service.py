@@ -18,12 +18,11 @@ class IngestionBusinessService:
         self.stream_repository = stream_repository
         self.kafka_repository = kafka_repository
         self.binance_connector = binance_connector
-        self.active_streams = {}  # stream_id -> {tenant_id, symbols, task}
+        self.active_streams = {}  # stream_id -> {symbols, task}
         logger.info("IngestionBusinessService initialized")
 
     async def start_stream(
         self,
-        tenant_id: str,
         symbols: List[str],
         exchange: str,
         stream_type: str,
@@ -36,7 +35,6 @@ class IngestionBusinessService:
 
             # Create stream session in database
             await self.stream_repository.create_stream(
-                tenant_id=tenant_id,
                 stream_id=stream_id,
                 symbols=symbols,
                 exchange=exchange,
@@ -47,7 +45,6 @@ class IngestionBusinessService:
             async def data_callback(data):
                 await self._handle_market_data(
                     data=data,
-                    tenant_id=tenant_id,
                     stream_id=stream_id,
                     kafka_topic=kafka_topic,
                 )
@@ -71,7 +68,6 @@ class IngestionBusinessService:
 
             # Track active stream
             self.active_streams[stream_id] = {
-                "tenant_id": tenant_id,
                 "symbols": symbols,
                 "exchange": exchange,
                 "stream_type": stream_type,
@@ -79,7 +75,7 @@ class IngestionBusinessService:
                 "started_at": datetime.utcnow(),
             }
 
-            logger.info(f"Started stream {stream_id} for tenant {tenant_id}")
+            logger.info(f"Started stream {stream_id}")
 
             return {
                 "stream_id": stream_id,
@@ -94,20 +90,15 @@ class IngestionBusinessService:
             logger.error(f"Failed to start stream: {e}", exc_info=True)
             raise
 
-    async def stop_stream(self, stream_id: str, tenant_id: str) -> bool:
+    async def stop_stream(self, stream_id: str) -> bool:
         """Stop an active data stream"""
         try:
-            # Verify stream exists and belongs to tenant
+            # Verify stream exists
             if stream_id not in self.active_streams:
                 logger.warning(f"Stream not found: {stream_id}")
                 return False
 
             stream_info = self.active_streams[stream_id]
-            if stream_info["tenant_id"] != tenant_id:
-                logger.warning(
-                    f"Stream {stream_id} does not belong to tenant {tenant_id}"
-                )
-                return False
 
             # Stop connector websocket
             connector_stream_id = stream_info["connector_stream_id"]
@@ -126,7 +117,7 @@ class IngestionBusinessService:
             logger.error(f"Failed to stop stream: {e}")
             return False
 
-    async def get_stream_status(self, stream_id: str, tenant_id: str) -> Dict[str, Any]:
+    async def get_stream_status(self, stream_id: str) -> Dict[str, Any]:
         """Get status of a running stream"""
         try:
             # Get from database
@@ -134,10 +125,6 @@ class IngestionBusinessService:
 
             if not db_stream:
                 return {"error": "Stream not found"}
-
-            # Verify tenant
-            if db_stream["tenant_id"] != tenant_id:
-                return {"error": "Unauthorized"}
 
             # Check if still active in memory
             is_active = stream_id in self.active_streams
@@ -168,7 +155,6 @@ class IngestionBusinessService:
 
     async def fetch_historical_data(
         self,
-        tenant_id: str,
         symbol: str,
         exchange: str,
         start_time: datetime,
@@ -191,9 +177,8 @@ class IngestionBusinessService:
                 limit=limit,
             )
 
-            # Enrich with tenant_id
+            # Enrich with exchange info
             for candle in candles:
-                candle["tenant_id"] = tenant_id
                 candle["exchange"] = exchange
 
             logger.info(f"Fetched {len(candles)} historical candles for {symbol}")
@@ -204,13 +189,12 @@ class IngestionBusinessService:
             return []
 
     async def _handle_market_data(
-        self, data: Dict[str, Any], tenant_id: str, stream_id: str, kafka_topic: str
+        self, data: Dict[str, Any], stream_id: str, kafka_topic: str
     ):
         """Handle incoming market data from connector"""
         try:
             # Publish to Kafka
             success = await self.kafka_repository.publish_market_data(
-                tenant_id=tenant_id,
                 symbol=data.get("symbol"),
                 exchange=data.get("exchange", "binance"),
                 data=data,
@@ -225,9 +209,3 @@ class IngestionBusinessService:
 
         except Exception as e:
             logger.error(f"Error handling market data: {e}", exc_info=True)
-
-
-# TODO: Add error handling and retry logic
-# TODO: Add circuit breaker for exchange connections
-# TODO: Add metrics collection (Prometheus)
-# TODO: Add stream health monitoring

@@ -8,20 +8,18 @@ from typing import Dict, Any, Optional
 from proto import common_pb2
 
 
-def create_tenant_context(tenant_id: str, user_id: str, roles: list[str]) -> Any:
+def create_user_context(user_id: str, roles: list[str]) -> Any:
     """
-    Create a TenantContext message for gRPC calls
+    Create a UserContext message for gRPC calls
     
     Args:
-        tenant_id: Tenant identifier
         user_id: User identifier
         roles: User roles
         
     Returns:
-        common_pb2.TenantContext message
+        common_pb2.UserContext message
     """
-    return common_pb2.TenantContext(
-        tenant_id=tenant_id,
+    return common_pb2.UserContext(
         user_id=user_id,
         roles=roles
     )
@@ -79,6 +77,3 @@ def add_auth_metadata(metadata: Dict[str, str], token: str) -> Dict[str, str]:
     metadata_copy = metadata.copy()
     metadata_copy['authorization'] = f'Bearer {token}'
     return metadata_copy
-
-
-

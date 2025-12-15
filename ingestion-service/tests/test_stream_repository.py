@@ -8,14 +8,12 @@ import pytest
 @pytest.mark.asyncio
 async def test_create_stream(stream_repository, clean_db, test_tenants):
     """Test creating a stream session"""
-    tenant_id = test_tenants["tenant1"]
     stream_id = str(uuid.uuid4())
     symbols = ["BTCUSDT", "ETHUSDT"]
     exchange = "binance"
     stream_type = "ticker"
 
     result = await stream_repository.create_stream(
-        tenant_id=tenant_id,
         stream_id=stream_id,
         symbols=symbols,
         exchange=exchange,
@@ -24,7 +22,6 @@ async def test_create_stream(stream_repository, clean_db, test_tenants):
 
     assert result is not None
     assert result["stream_id"] == stream_id
-    assert result["tenant_id"] == tenant_id
     assert result["symbols"] == symbols
     assert result["status"] == "active"
     assert result["events_processed"] == 0
@@ -35,11 +32,9 @@ async def test_create_stream(stream_repository, clean_db, test_tenants):
 async def test_get_stream(stream_repository, clean_db, test_tenants):
     """Test retrieving a stream session"""
     # Create a stream first
-    tenant_id = test_tenants["tenant1"]
     stream_id = str(uuid.uuid4())
 
     await stream_repository.create_stream(
-        tenant_id=tenant_id,
         stream_id=stream_id,
         symbols=["BTCUSDT"],
         exchange="binance",
@@ -58,10 +53,8 @@ async def test_get_stream(stream_repository, clean_db, test_tenants):
 async def test_increment_event_count(stream_repository, clean_db, test_tenants):
     """Test incrementing event count"""
     stream_id = str(uuid.uuid4())
-    tenant_id = test_tenants["tenant1"]
 
     await stream_repository.create_stream(
-        tenant_id=tenant_id,
         stream_id=stream_id,
         symbols=["BTCUSDT"],
         exchange="binance",
@@ -82,10 +75,8 @@ async def test_increment_event_count(stream_repository, clean_db, test_tenants):
 async def test_stop_stream(stream_repository, clean_db, test_tenants):
     """Test stopping a stream"""
     stream_id = str(uuid.uuid4())
-    tenant_id = test_tenants["tenant1"]
 
     await stream_repository.create_stream(
-        tenant_id=tenant_id,
         stream_id=stream_id,
         symbols=["BTCUSDT"],
         exchange="binance",
@@ -104,33 +95,21 @@ async def test_stop_stream(stream_repository, clean_db, test_tenants):
 
 
 @pytest.mark.asyncio
-async def test_list_active_streams_by_tenant(stream_repository, clean_db, test_tenants):
-    """Test listing active streams for a tenant"""
-    tenant_id = test_tenants["tenant1"]
-
-    # Create 3 streams for this tenant
+async def test_list_active_streams(stream_repository, clean_db, test_tenants):
+    """Test listing active streams"""
+    # Create 3 streams
     for i in range(3):
         await stream_repository.create_stream(
-            tenant_id=tenant_id,
             stream_id=str(uuid.uuid4()),
             symbols=[f"SYM{i}USDT"],
             exchange="binance",
             stream_type="ticker",
         )
 
-    # Create 1 stream for another tenant
-    await stream_repository.create_stream(
-        tenant_id=test_tenants["tenant2"],
-        stream_id=str(uuid.uuid4()),
-        symbols=["BTCUSDT"],
-        exchange="binance",
-        stream_type="ticker",
-    )
-
-    # List active streams for tenant-1
-    streams = await stream_repository.list_active_streams(tenant_id)
-    assert len(streams) == 3
-    print(f"✓ Listed {len(streams)} active streams for {tenant_id}")
+    # List active streams
+    streams = await stream_repository.list_active_streams()
+    assert len(streams) >= 3
+    print(f"✓ Listed {len(streams)} active streams")
 
 
 @pytest.mark.asyncio
@@ -145,11 +124,9 @@ async def test_get_nonexistent_stream(stream_repository, clean_db):
 async def test_duplicate_stream_id_fails(stream_repository, clean_db, test_tenants):
     """Test that creating a stream with duplicate ID fails"""
     stream_id = str(uuid.uuid4())
-    tenant_id = test_tenants["tenant1"]
 
     # Create first stream
     await stream_repository.create_stream(
-        tenant_id=tenant_id,
         stream_id=stream_id,
         symbols=["BTCUSDT"],
         exchange="binance",
@@ -159,7 +136,6 @@ async def test_duplicate_stream_id_fails(stream_repository, clean_db, test_tenan
     # Try to create duplicate
     with pytest.raises(Exception):
         await stream_repository.create_stream(
-            tenant_id=tenant_id,
             stream_id=stream_id,  # Same ID
             symbols=["ETHUSDT"],
             exchange="binance",

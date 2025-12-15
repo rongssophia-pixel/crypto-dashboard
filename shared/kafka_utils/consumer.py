@@ -22,12 +22,18 @@ class KafkaConsumerWrapper:
         group_id: str,
         auto_offset_reset: str = "earliest",
         enable_auto_commit: bool = True,
+        session_timeout_ms: int = 30000,
+        max_poll_interval_ms: int = 300000,
+        heartbeat_interval_ms: int = 3000,
     ):
         self.topics = topics
         self.bootstrap_servers = bootstrap_servers
         self.group_id = group_id
         self.auto_offset_reset = auto_offset_reset
         self.enable_auto_commit = enable_auto_commit
+        self.session_timeout_ms = session_timeout_ms
+        self.max_poll_interval_ms = max_poll_interval_ms
+        self.heartbeat_interval_ms = heartbeat_interval_ms
         self._running = False
         self.consumer: Optional[KafkaConsumer] = None
         
@@ -42,6 +48,9 @@ class KafkaConsumerWrapper:
             value_deserializer=lambda m: json.loads(m.decode("utf-8")),
             key_deserializer=lambda k: k.decode("utf-8") if k else None,
             consumer_timeout_ms=1000,  # Allow checking _running flag
+            session_timeout_ms=self.session_timeout_ms,  # Time before Kafka considers consumer dead
+            max_poll_interval_ms=self.max_poll_interval_ms,  # Max time between polls
+            heartbeat_interval_ms=self.heartbeat_interval_ms,  # Heartbeat frequency
         )
         logger.info(f"Kafka consumer created: {self.group_id} subscribed to {self.topics}")
 

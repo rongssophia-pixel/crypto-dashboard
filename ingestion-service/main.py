@@ -157,12 +157,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
                 logger.info("Stopping all active streams...")
                 active_stream_ids = list(app_state.ingestion_service.active_streams.keys())
                 for stream_id in active_stream_ids:
-                    stream_info = app_state.ingestion_service.active_streams.get(stream_id)
-                    if stream_info:
-                        await app_state.ingestion_service.stop_stream(
-                            stream_id=stream_id,
-                            tenant_id=stream_info["tenant_id"]
-                        )
+                    await app_state.ingestion_service.stop_stream(
+                        stream_id=stream_id
+                    )
                 logger.info(f"✅ Stopped {len(active_stream_ids)} active stream(s)")
             except Exception as e:
                 logger.error(f"Error stopping streams: {e}")
@@ -280,13 +277,6 @@ async def metrics():
     Prometheus metrics endpoint
     Exposes service metrics for monitoring
     """
-    # TODO: Add custom metrics for:
-    # - Active streams count
-    # - Messages processed per second
-    # - Kafka publish latency
-    # - WebSocket connection health
-    # - Error rates
-    
     return Response(
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST
@@ -303,7 +293,6 @@ async def debug_streams(service: IngestionBusinessService = Depends(get_ingestio
     for stream_id, stream_info in service.active_streams.items():
         streams.append({
             "stream_id": stream_id,
-            "tenant_id": stream_info["tenant_id"],
             "symbols": stream_info["symbols"],
             "exchange": stream_info["exchange"],
             "stream_type": stream_info["stream_type"],

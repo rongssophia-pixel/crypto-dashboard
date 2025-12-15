@@ -7,7 +7,7 @@ import asyncio
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 import aiohttp
@@ -29,7 +29,8 @@ class BinanceConnector:
         self,
         api_key: Optional[str] = None,
         api_secret: Optional[str] = None,
-        websocket_url: str = "wss://stream.binance.com:9443",
+        # websocket_url: str = "wss://stream.binance.com:9443",
+        websocket_url: str = "wss://ws-api.binance.us:443/ws-api/v3",
     ):
         """
         Initialize Binance connector
@@ -309,7 +310,10 @@ class BinanceConnector:
             "price_change_24h": float(data.get("p", 0)),
             "price_change_pct_24h": float(data.get("P", 0)),
             "trade_count": int(data.get("n", 0)),
-            "timestamp": data.get("E", int(datetime.utcnow().timestamp() * 1000)),
+            # Binance timestamps are milliseconds since epoch in UTC
+            "timestamp": data.get(
+                "E", int(datetime.now(timezone.utc).timestamp() * 1000)
+            ),
             "exchange": "binance",
         }
 
@@ -321,7 +325,10 @@ class BinanceConnector:
             "symbol": data.get("s"),
             "price": float(data.get("p", 0)),
             "volume": float(data.get("q", 0)),
-            "timestamp": data.get("T", int(datetime.utcnow().timestamp() * 1000)),
+            # Binance trade timestamps are milliseconds since epoch in UTC
+            "timestamp": data.get(
+                "T", int(datetime.now(timezone.utc).timestamp() * 1000)
+            ),
             "trade_id": data.get("t"),
             "is_buyer_maker": data.get("m"),
             "exchange": "binance",

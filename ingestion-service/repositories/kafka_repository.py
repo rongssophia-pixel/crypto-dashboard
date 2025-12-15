@@ -20,7 +20,6 @@ class KafkaRepository:
 
     async def publish_market_data(
         self,
-        tenant_id: str,
         symbol: str,
         exchange: str,
         data: Dict[str, Any],
@@ -28,10 +27,9 @@ class KafkaRepository:
     ) -> bool:
         """Publish market data to Kafka topic"""
         try:
-            # Enrich data with tenant context
+            # Enrich data (no tenant_id)
             enriched_data = {
                 **data,
-                "tenant_id": tenant_id,
                 "symbol": symbol,
                 "exchange": exchange,
             }
@@ -66,9 +64,3 @@ class KafkaRepository:
     def close(self):
         """Close the Kafka producer"""
         self.producer.close()
-
-
-# TODO: Add retry logic for failed publishes
-# TODO: Add metrics for publish latency
-# TODO: Add dead letter queue for failed messages
-# TODO: Add schema validation before publishing
