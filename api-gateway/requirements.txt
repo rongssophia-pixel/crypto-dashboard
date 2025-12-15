@@ -5,7 +5,7 @@ uvicorn[standard]
 grpcio
 grpcio-tools
 protobuf
-pydantic
+pydantic[email]
 pydantic-settings
 python-jose[cryptography]
 passlib[bcrypt]
@@ -21,4 +21,5 @@ pre-commit
 # Testing
 pytest
 pytest-asyncio
+pytest-mock
 httpx  # For testing FastAPI endpoints

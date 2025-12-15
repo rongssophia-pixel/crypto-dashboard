@@ -8,13 +8,13 @@ class Settings(BaseSettings):
     service_port: int = 8000
     
     # Service endpoints
-    ingestion_service_host: str = "ingestion-service"
+    ingestion_service_host: str = "localhost"
     ingestion_service_port: int = 50051
-    analytics_service_host: str = "analytics-service"
+    analytics_service_host: str = "localhost"
     analytics_service_port: int = 50052
-    storage_service_host: str = "storage-service"
+    storage_service_host: str = "localhost"
     storage_service_port: int = 50053
-    notification_service_host: str = "notification-service"
+    notification_service_host: str = "localhost"
     notification_service_port: int = 50054
     
     # JWT

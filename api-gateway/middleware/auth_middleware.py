@@ -3,9 +3,10 @@ Authentication Middleware
 Validates JWT tokens and extracts tenant context
 """
 
-from fastapi import Request, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
+
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 # from shared.auth.jwt_handler import JWTHandler
 
@@ -14,25 +15,12 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
 
-async def verify_token(credentials: HTTPAuthorizationCredentials):
+async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
     Verify JWT token and extract tenant context
-    
-    Args:
-        credentials: HTTP authorization credentials
-        
-    Returns:
-        TenantContext object
-        
-    Raises:
-        HTTPException: If token is invalid
     """
-    # TODO: Implement token verification
-    # 1. Extract token from credentials
-    # 2. Verify using JWTHandler
-    # 3. Extract tenant_id, user_id, roles
-    # 4. Return TenantContext
-    pass
+    # Development mode: return dummy token
+    return {"sub": "dev-user", "roles": ["admin"], "tenant_id": "dev-tenant"}
 
 
 def get_current_user():
@@ -45,4 +33,3 @@ def get_current_user():
 
 # TODO: Add role-based access control decorator
 # TODO: Add rate limiting per tenant
-

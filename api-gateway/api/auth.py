@@ -15,7 +15,6 @@ class LoginRequest(BaseModel):
     """Login request model"""
     email: EmailStr
     password: str
-    tenant_id: str
 
 
 class LoginResponse(BaseModel):
@@ -29,7 +28,6 @@ class RegisterRequest(BaseModel):
     """User registration request"""
     email: EmailStr
     password: str
-    tenant_id: str
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -69,4 +67,3 @@ async def refresh_token():
 
 # TODO: Add password reset endpoints
 # TODO: Add email verification
-
