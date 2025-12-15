@@ -20,7 +20,7 @@ service StorageService {
 }
 
 message ArchiveRequest {
-  common.TenantContext context = 1;
+  common.UserContext context = 1;
   common.Timestamp start_time = 2;
   common.Timestamp end_time = 3;
   repeated string symbols = 4;  // empty = all symbols
@@ -36,7 +36,7 @@ message ArchiveResponse {
 }
 
 message ArchiveQueryRequest {
-  common.TenantContext context = 1;
+  common.UserContext context = 1;
   string sql_query = 2;  // Athena-compatible SQL
   int32 max_results = 3;
 }
@@ -54,7 +54,7 @@ message ArchiveRow {
 
 message ArchiveStatusRequest {
   string archive_id = 1;
-  common.TenantContext context = 2;
+  common.UserContext context = 2;
 }
 
 message ArchiveStatusResponse {
@@ -68,7 +68,7 @@ message ArchiveStatusResponse {
 }
 
 message ListArchivesRequest {
-  common.TenantContext context = 1;
+  common.UserContext context = 1;
   common.Timestamp start_date = 2;
   common.Timestamp end_date = 3;
   int32 limit = 4;
@@ -88,4 +88,3 @@ message ArchiveMetadata {
   int64 records_count = 5;
   string data_type = 6;
 }
-

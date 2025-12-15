@@ -11,7 +11,9 @@ python-jose[cryptography]
 prometheus-client
 boto3
 pyarrow
+pandas
 python-dateutil
+asyncpg
 
 # Development tools
 flake8
