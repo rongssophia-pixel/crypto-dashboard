@@ -20,7 +20,7 @@ service NotificationService {
 }
 
 message NotificationRequest {
-  common.TenantContext context = 1;
+  common.UserContext context = 1;
   string user_id = 2;
   NotificationType type = 3;
   string subject = 4;
@@ -53,7 +53,7 @@ message NotificationResponse {
 }
 
 message BulkNotificationRequest {
-  common.TenantContext context = 1;
+  common.UserContext context = 1;
   repeated NotificationRequest notifications = 2;
 }
 
@@ -67,7 +67,7 @@ message BulkNotificationResponse {
 
 message NotificationStatusRequest {
   string notification_id = 1;
-  common.TenantContext context = 2;
+  common.UserContext context = 2;
 }
 
 message NotificationStatusResponse {
@@ -80,7 +80,7 @@ message NotificationStatusResponse {
 }
 
 message NotificationHistoryRequest {
-  common.TenantContext context = 1;
+  common.UserContext context = 1;
   string user_id = 2;
   common.Timestamp start_time = 3;
   common.Timestamp end_time = 4;
@@ -101,4 +101,3 @@ message NotificationRecord {
   common.Timestamp created_at = 5;
   common.Timestamp sent_at = 6;
 }
-

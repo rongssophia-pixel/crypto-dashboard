@@ -14,6 +14,8 @@ aiohttp
 jinja2
 psycopg2-binary
 sqlalchemy
+asyncpg
+aiokafka
 
 # Development tools
 flake8

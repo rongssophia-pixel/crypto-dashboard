@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Kafka with KRaft (no Zookeeper)
   kafka:
@@ -44,7 +42,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./db/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../db/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -59,13 +57,13 @@ services:
       - "9000:9000"
       - "8123:8123"
     environment:
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      # No password for local development
+      CLICKHOUSE_DB: crypto_analytics
+      CLICKHOUSE_USER: default
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-      CLICKHOUSE_ALLOW_EMPTY_PASSWORD: 1
     volumes:
       - clickhouse-data:/var/lib/clickhouse
-      - ./db/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../db/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1'"]
       interval: 10s
@@ -82,10 +80,11 @@ services:
     environment:
       SERVICES: s3,athena,flink
       DEBUG: 1
-      DATA_DIR: /tmp/localstack/data
       AWS_DEFAULT_REGION: us-east-1
     volumes:
-      - localstack-data:/tmp/localstack
+      - ./aws:/etc/localstack/init/ready.d/
+      - localstack-data:/var/lib/localstack
+      - "/var/run/docker.sock:/var/run/docker.sock"
     healthcheck:
       test: ["CMD-SHELL", "awslocal s3 ls || exit 1"]
       interval: 10s
@@ -99,11 +98,14 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      # Use prometheus.local.yml for local development (services run on host)
+      # Use prometheus.yml for Docker deployment (services run in containers)
+      - ../monitoring/prometheus.local.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'  # Enable reload via HTTP POST
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
       interval: 10s
@@ -122,7 +124,7 @@ services:
       GF_INSTALL_PLUGINS: grafana-clock-panel
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
     healthcheck:
@@ -131,17 +133,21 @@ services:
       timeout: 5s
       retries: 5
 
-  # Microservices (uncomment when ready to deploy)
+  # ============================================================================
+  # MICROSERVICES - Currently commented out for local development
+  # Infrastructure runs in Docker, services run locally
+  # Uncomment when ready to containerize services
+  # ============================================================================
 
   # api-gateway:
   #   build:
-  #     context: .
+  #     context: ..
   #     dockerfile: api-gateway/Dockerfile
   #   container_name: crypto-api-gateway
   #   ports:
   #     - "8000:8000"
   #   env_file:
-  #     - .env
+  #     - ../.env
   #   depends_on:
   #     - postgres
   #     - kafka
@@ -150,82 +156,97 @@ services:
   #     - storage-service
   #     - notification-service
 
-  ingestion-service:
-    build:
-      context: .
-      dockerfile: ingestion-service/Dockerfile
-    container_name: crypto-ingestion-service
-    ports:
-      - "50051:50051"  # gRPC
-      - "8001:8001"    # FastAPI HTTP (health, metrics, docs)
-    env_file:
-      - .env
-    environment:
-      # Override for Docker networking (use service names, not localhost)
-      POSTGRES_HOST: postgres
-      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
-    depends_on:
-      - postgres
-      - kafka
+  # ingestion-service:
+  #   build:
+  #     context: ..
+  #     dockerfile: ingestion-service/Dockerfile
+  #   container_name: crypto-ingestion-service
+  #   ports:
+  #     - "50051:50051"  # gRPC
+  #     - "8001:8001"    # FastAPI HTTP (health, metrics, docs)
+  #   env_file:
+  #     - ../.env
+  #   environment:
+  #     # Override for Docker networking (use service names, not localhost)
+  #     POSTGRES_HOST: postgres
+  #     KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+  #   depends_on:
+  #     - postgres
+  #     - kafka
 
   # analytics-service:
   #   build:
-  #     context: .
+  #     context: ..
   #     dockerfile: analytics-service/Dockerfile
   #   container_name: crypto-analytics-service
   #   ports:
-  #     - "50052:50052"
+  #     - "50052:50052"  # gRPC
+  #     - "8002:8002"    # FastAPI HTTP (health, metrics, REST API)
   #   env_file:
-  #     - .env
+  #     - ../.env
+  #   environment:
+  #     # Override for Docker networking (use service names, not localhost)
+  #     CLICKHOUSE_HOST: clickhouse
+  #     CLICKHOUSE_PORT: "9000"
+  #     CLICKHOUSE_DB: crypto_analytics
+  #     CLICKHOUSE_USER: default
+  #     CLICKHOUSE_PASSWORD: ""
   #   depends_on:
   #     - clickhouse
+  #     - stream-processing-service
 
   # storage-service:
   #   build:
-  #     context: .
+  #     context: ..
   #     dockerfile: storage-service/Dockerfile
   #   container_name: crypto-storage-service
   #   ports:
   #     - "50053:50053"
   #   env_file:
-  #     - .env
+  #     - ../.env
+  #   environment:
+  #     # Override for Docker networking
+  #     AWS_ENDPOINT_URL: http://localstack:4566
   #   depends_on:
   #     - localstack
 
   # notification-service:
   #   build:
-  #     context: .
+  #     context: ..
   #     dockerfile: notification-service/Dockerfile
   #   container_name: crypto-notification-service
   #   ports:
   #     - "50054:50054"
   #   env_file:
-  #     - .env
+  #     - ../.env
+  #   environment:
+  #     # Override for Docker networking
+  #     POSTGRES_HOST: postgres
   #   depends_on:
   #     - postgres
   #     - kafka
 
-  stream-processing-service:
-    build:
-      context: .
-      dockerfile: stream-processing-service/Dockerfile
-    container_name: crypto-stream-processing
-    ports:
-      - "50055:50055"  # gRPC (reserved for future)
-      - "8005:8005"    # FastAPI HTTP (health, metrics, stats)
-    env_file:
-      - .env
-    environment:
-      # Override for Docker networking (use service names, not localhost)
-      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
-      CLICKHOUSE_HOST: clickhouse
-      CLICKHOUSE_PORT: "9000"
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: ""
-    depends_on:
-      - kafka
-      - clickhouse
-      - ingestion-service
+  # stream-processing-service:
+  #   build:
+  #     context: ..
+  #     dockerfile: stream-processing-service/Dockerfile
+  #   container_name: crypto-stream-processing
+  #   ports:
+  #     - "50055:50055"  # gRPC (reserved for future)
+  #     - "8005:8005"    # FastAPI HTTP (health, metrics, stats)
+  #   env_file:
+  #     - ../.env
+  #   environment:
+  #     # Override for Docker networking (use service names, not localhost)
+  #     KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+  #     CLICKHOUSE_HOST: clickhouse
+  #     CLICKHOUSE_PORT: "9000"
+  #     CLICKHOUSE_USER: default
+  #     CLICKHOUSE_PASSWORD: ""
+  #   depends_on:
+  #     - kafka
+  #     - clickhouse
+  #     - ingestion-service
 
 volumes:
   kafka-data:

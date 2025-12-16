@@ -11,7 +11,7 @@ from concurrent import futures
 
 from fastapi import FastAPI, Depends
 from fastapi.responses import Response
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram, Gauge
 import grpc
 from psycopg2.pool import SimpleConnectionPool
 
@@ -29,6 +29,96 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+# ========================================
+# PROMETHEUS METRICS
+# ========================================
+# Helper function to safely create or get existing metrics
+def get_or_create_counter(name, description, labelnames):
+    """Get existing counter or create new one"""
+    from prometheus_client import REGISTRY
+    
+    # Try to find existing metric
+    # For counters, strip _total suffix if present when checking _name
+    base_name = name.replace('_total', '') if name.endswith('_total') else name
+    
+    for collector in list(REGISTRY._collector_to_names.keys()):
+        if hasattr(collector, '_name') and collector._name == base_name:
+            return collector
+    
+    # If not found, create new one
+    try:
+        return Counter(name, description, labelnames)
+    except ValueError:
+        # If we still get a duplicate error, try to find it again
+        for collector in list(REGISTRY._collector_to_names.keys()):
+            if hasattr(collector, '_name') and collector._name == base_name:
+                return collector
+        raise
+
+def get_or_create_gauge(name, description, labelnames):
+    """Get existing gauge or create new one"""
+    from prometheus_client import REGISTRY
+    
+    for collector in list(REGISTRY._collector_to_names.keys()):
+        if hasattr(collector, '_name') and collector._name == name:
+            return collector
+    
+    try:
+        return Gauge(name, description, labelnames)
+    except ValueError:
+        for collector in list(REGISTRY._collector_to_names.keys()):
+            if hasattr(collector, '_name') and collector._name == name:
+                return collector
+        raise
+
+def get_or_create_histogram(name, description, labelnames):
+    """Get existing histogram or create new one"""
+    from prometheus_client import REGISTRY
+    
+    for collector in list(REGISTRY._collector_to_names.keys()):
+        if hasattr(collector, '_name') and collector._name == name:
+            return collector
+    
+    try:
+        return Histogram(name, description, labelnames)
+    except ValueError:
+        for collector in list(REGISTRY._collector_to_names.keys()):
+            if hasattr(collector, '_name') and collector._name == name:
+                return collector
+        raise
+
+# Initialize metrics
+RECORDS_RECEIVED = get_or_create_counter(
+    "ingestion_records_received_total",
+    "Total records received from exchanges",
+    ["exchange", "stream_type", "symbol"]
+)
+
+RECORDS_PUBLISHED = get_or_create_counter(
+    "ingestion_records_published_total",
+    "Total records published to Kafka",
+    ["exchange", "stream_type", "symbol", "topic"]
+)
+
+RECORDS_FAILED = get_or_create_counter(
+    "ingestion_records_failed_total",
+    "Total records that failed to publish",
+    ["exchange", "stream_type", "symbol", "reason"]
+)
+
+ACTIVE_STREAMS = get_or_create_gauge(
+    "ingestion_active_streams",
+    "Number of active ingestion streams",
+    ["exchange", "stream_type"]
+)
+
+PROCESSING_LATENCY = get_or_create_histogram(
+    "ingestion_processing_duration_seconds",
+    "Time to process and publish record",
+    ["exchange", "stream_type"]
+)
 
 
 class AppState:

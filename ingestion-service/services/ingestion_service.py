@@ -4,6 +4,7 @@ Core business logic for data ingestion
 """
 
 import logging
+import time
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List
@@ -75,6 +76,16 @@ class IngestionBusinessService:
                 "started_at": datetime.utcnow(),
             }
 
+            # Update Prometheus metrics
+            try:
+                from main import ACTIVE_STREAMS
+                ACTIVE_STREAMS.labels(
+                    exchange=exchange,
+                    stream_type=stream_type
+                ).inc()
+            except ImportError:
+                pass  # Metrics not available in test environment
+
             logger.info(f"Started stream {stream_id}")
 
             return {
@@ -109,6 +120,16 @@ class IngestionBusinessService:
 
             # Remove from active streams
             del self.active_streams[stream_id]
+
+            # Update Prometheus metrics
+            try:
+                from main import ACTIVE_STREAMS
+                ACTIVE_STREAMS.labels(
+                    exchange=stream_info["exchange"],
+                    stream_type=stream_info["stream_type"]
+                ).dec()
+            except ImportError:
+                pass  # Metrics not available in test environment
 
             logger.info(f"Stopped stream {stream_id}")
             return True
@@ -192,20 +213,74 @@ class IngestionBusinessService:
         self, data: Dict[str, Any], stream_id: str, kafka_topic: str
     ):
         """Handle incoming market data from connector"""
+        start_time = time.time()
+        
+        exchange = data.get("exchange", "binance")
+        stream_type = data.get("type", "unknown")
+        symbol = data.get("symbol", "unknown")
+        
         try:
+            # Import metrics (skip if not available in test environment)
+            try:
+                from main import RECORDS_RECEIVED, RECORDS_PUBLISHED, RECORDS_FAILED, PROCESSING_LATENCY
+                metrics_available = True
+            except ImportError:
+                metrics_available = False
+            
+            # Increment received counter
+            if metrics_available:
+                RECORDS_RECEIVED.labels(
+                    exchange=exchange,
+                    stream_type=stream_type,
+                    symbol=symbol
+                ).inc()
+            
             # Publish to Kafka
             success = await self.kafka_repository.publish_market_data(
-                symbol=data.get("symbol"),
-                exchange=data.get("exchange", "binance"),
+                symbol=symbol,
+                exchange=exchange,
                 data=data,
                 topic=kafka_topic,
             )
 
             if success:
+                # Increment published counter
+                if metrics_available:
+                    RECORDS_PUBLISHED.labels(
+                        exchange=exchange,
+                        stream_type=stream_type,
+                        symbol=symbol,
+                        topic=kafka_topic
+                    ).inc()
+                    
+                    # Record processing time
+                    PROCESSING_LATENCY.labels(
+                        exchange=exchange,
+                        stream_type=stream_type
+                    ).observe(time.time() - start_time)
+                
                 # Update stream metrics
                 await self.stream_repository.increment_event_count(stream_id)
             else:
+                if metrics_available:
+                    RECORDS_FAILED.labels(
+                        exchange=exchange,
+                        stream_type=stream_type,
+                        symbol=symbol,
+                        reason="kafka_publish_failed"
+                    ).inc()
                 logger.error(f"Failed to publish data for stream {stream_id}")
 
         except Exception as e:
+            # Increment failure counter
+            try:
+                from main import RECORDS_FAILED
+                RECORDS_FAILED.labels(
+                    exchange=exchange,
+                    stream_type=stream_type,
+                    symbol=symbol,
+                    reason="exception"
+                ).inc()
+            except ImportError:
+                pass
             logger.error(f"Error handling market data: {e}", exc_info=True)

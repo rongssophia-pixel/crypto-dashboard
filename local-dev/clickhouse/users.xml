@@ -1,0 +1,22 @@
+<clickhouse>
+    <users>
+        <default>
+            <!-- No password required for local development -->
+            <no_password>1</no_password>
+            
+            <!-- Allow connections from anywhere -->
+            <networks>
+                <ip>::/0</ip>
+            </networks>
+            
+            <!-- Default profile -->
+            <profile>default</profile>
+            
+            <!-- Default quota -->
+            <quota>default</quota>
+            
+            <!-- Allow user management -->
+            <access_management>1</access_management>
+        </default>
+    </users>
+</clickhouse>

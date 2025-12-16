@@ -9,7 +9,9 @@ class Settings(BaseSettings):
     service_port: int = 50054
     
     # PostgreSQL
-    postgres_host: str
+    # Local development: localhost
+    # Docker deployment: override with POSTGRES_HOST=postgres
+    postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_db: str
     postgres_user: str
@@ -28,9 +30,19 @@ class Settings(BaseSettings):
     # Monitoring
     prometheus_port: int = 9104
     
+    # Kafka
+    kafka_bootstrap_servers: str = "localhost:9092"
+    kafka_topic_alerts: str = "crypto.alerts"
+    kafka_consumer_group: str = "notification-service-group"
+    
+    # Retry logic
+    max_retry_attempts: int = 3
+    retry_interval_seconds: int = 60
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # Ignore extra fields from shared .env file
 
 
 settings = Settings()

@@ -8,7 +8,6 @@ USE crypto_analytics;
 
 -- Raw market data table (tick-level data)
 CREATE TABLE IF NOT EXISTS market_data (
-    tenant_id UUID,
     timestamp DateTime64(3),
     symbol String,
     exchange String,
@@ -27,7 +26,7 @@ CREATE TABLE IF NOT EXISTS market_data (
     metadata String  -- JSON string for flexible additional data
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
-ORDER BY (tenant_id, symbol, timestamp)
+ORDER BY (symbol, timestamp)
 SETTINGS index_granularity = 8192;
 
 -- Create indexes for better query performance
@@ -36,7 +35,6 @@ CREATE INDEX IF NOT EXISTS idx_market_data_symbol ON market_data(symbol) TYPE se
 
 -- Aggregated candles table (OHLCV data)
 CREATE TABLE IF NOT EXISTS market_candles (
-    tenant_id UUID,
     timestamp DateTime64(3),
     symbol String,
     exchange String,
@@ -52,7 +50,7 @@ CREATE TABLE IF NOT EXISTS market_candles (
     taker_buy_quote_volume Decimal(18, 8)
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
-ORDER BY (tenant_id, symbol, interval, timestamp)
+ORDER BY (symbol, interval, timestamp)
 SETTINGS index_granularity = 8192;
 
 CREATE INDEX IF NOT EXISTS idx_candles_timestamp ON market_candles(timestamp) TYPE minmax GRANULARITY 4;
@@ -61,7 +59,6 @@ CREATE INDEX IF NOT EXISTS idx_candles_interval ON market_candles(interval) TYPE
 
 -- Alert events table
 CREATE TABLE IF NOT EXISTS alert_events (
-    tenant_id UUID,
     timestamp DateTime64(3),
     alert_id UUID,
     user_id UUID,
@@ -74,7 +71,7 @@ CREATE TABLE IF NOT EXISTS alert_events (
     metadata String  -- JSON string
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
-ORDER BY (tenant_id, timestamp, alert_id)
+ORDER BY (timestamp, alert_id)
 SETTINGS index_granularity = 8192;
 
 CREATE INDEX IF NOT EXISTS idx_alerts_timestamp ON alert_events(timestamp) TYPE minmax GRANULARITY 4;
@@ -82,7 +79,6 @@ CREATE INDEX IF NOT EXISTS idx_alerts_symbol ON alert_events(symbol) TYPE set(10
 
 -- Table for tracking data quality metrics
 CREATE TABLE IF NOT EXISTS data_quality_metrics (
-    tenant_id UUID,
     timestamp DateTime64(3),
     symbol String,
     exchange String,
@@ -92,7 +88,7 @@ CREATE TABLE IF NOT EXISTS data_quality_metrics (
     description String
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
-ORDER BY (tenant_id, timestamp, symbol)
+ORDER BY (timestamp, symbol)
 SETTINGS index_granularity = 8192;
 
 -- Note: Materialized views for aggregations are handled by the stream-processing-service
@@ -110,13 +106,13 @@ SETTINGS index_granularity = 8192;
 -- Get latest price for a symbol
 -- SELECT symbol, timestamp, price, volume 
 -- FROM market_data 
--- WHERE tenant_id = 'xxx' AND symbol = 'BTCUSDT' 
+-- WHERE symbol = 'BTCUSDT' 
 -- ORDER BY timestamp DESC LIMIT 1;
 
 -- Get OHLCV candles
 -- SELECT timestamp, open, high, low, close, volume 
 -- FROM market_candles 
--- WHERE tenant_id = 'xxx' AND symbol = 'BTCUSDT' AND interval = '1h'
+-- WHERE symbol = 'BTCUSDT' AND interval = '1h'
 -- AND timestamp >= now() - INTERVAL 24 HOUR
 -- ORDER BY timestamp DESC;
 
@@ -128,6 +124,6 @@ SETTINGS index_granularity = 8192;
 --     stddevPop(price) as volatility,
 --     (max(price) - min(price)) / min(price) * 100 as price_range_pct
 -- FROM market_data
--- WHERE tenant_id = 'xxx' AND timestamp >= now() - INTERVAL 24 HOUR
+-- WHERE timestamp >= now() - INTERVAL 24 HOUR
 -- GROUP BY symbol, hour
 -- ORDER BY hour DESC;

@@ -1,6 +1,6 @@
-# Prometheus configuration for DOCKER DEPLOYMENT
-# Services run as Docker containers and use container networking
-# For local development (services on host), use prometheus.local.yml instead
+# Prometheus configuration for LOCAL DEVELOPMENT
+# Services run on host machine (localhost), not in Docker containers
+# Prometheus scrapes via host.docker.internal to reach host services
 
 global:
   scrape_interval: 15s
@@ -26,59 +26,59 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # API Gateway
+  # API Gateway (running locally on host)
   - job_name: 'api-gateway'
     static_configs:
-      - targets: ['api-gateway:8000']
+      - targets: ['host.docker.internal:8000']
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
         replacement: 'api-gateway'
 
-  # Ingestion Service
+  # Ingestion Service (running locally on host)
   - job_name: 'ingestion-service'
     static_configs:
-      - targets: ['ingestion-service:8001']
+      - targets: ['host.docker.internal:8001']
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
         replacement: 'ingestion-service'
 
-  # Analytics Service
+  # Analytics Service (running locally on host)
   - job_name: 'analytics-service'
     static_configs:
-      - targets: ['analytics-service:8002']
+      - targets: ['host.docker.internal:8002']
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
         replacement: 'analytics-service'
 
-  # Storage Service
+  # Storage Service (running locally on host)
   - job_name: 'storage-service'
     static_configs:
-      - targets: ['storage-service:8003']
+      - targets: ['host.docker.internal:8003']
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
         replacement: 'storage-service'
 
-  # Notification Service
-  - job_name: 'notification-service'
-    static_configs:
-      - targets: ['notification-service:9104']
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: 'notification-service'
-
-  # Stream Processing Service
+  # Stream Processing Service (running locally on host)
   - job_name: 'stream-processing-service'
     static_configs:
-      - targets: ['stream-processing-service:8005']
+      - targets: ['host.docker.internal:8005']
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
         replacement: 'stream-processing-service'
+
+  # Notification Service (optional - uncomment if running with metrics endpoint)
+  # - job_name: 'notification-service'
+  #   static_configs:
+  #     - targets: ['host.docker.internal:9104']
+  #   relabel_configs:
+  #     - source_labels: [__address__]
+  #       target_label: instance
+  #       replacement: 'notification-service'
 
   # PostgreSQL Exporter (optional)
   # - job_name: 'postgres'

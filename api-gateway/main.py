@@ -4,13 +4,17 @@ Unified REST API for all services
 """
 
 import logging
+import time
 from contextlib import asynccontextmanager
 
 from api import analytics, auth, ingestion, storage
 from config import settings
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from fastapi.security import HTTPBearer
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # from middleware.auth_middleware import verify_token
 
@@ -18,6 +22,46 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+# ========================================
+# PROMETHEUS METRICS
+# ========================================
+REQUEST_COUNT = Counter(
+    "http_requests_total",
+    "Total HTTP requests",
+    ["method", "endpoint", "status"]
+)
+REQUEST_LATENCY = Histogram(
+    "http_request_duration_seconds",
+    "HTTP request latency",
+    ["method", "endpoint"]
+)
+
+class PrometheusMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        
+        # Process request
+        response = await call_next(request)
+        
+        # Calculate duration
+        process_time = time.time() - start_time
+        
+        # Record metrics (skip metrics endpoint itself to avoid noise)
+        if request.url.path != "/metrics":
+            REQUEST_COUNT.labels(
+                method=request.method,
+                endpoint=request.url.path,
+                status=response.status_code
+            ).inc()
+            
+            REQUEST_LATENCY.labels(
+                method=request.method,
+                endpoint=request.url.path
+            ).observe(process_time)
+        
+        return response
 
 
 @asynccontextmanager
@@ -59,6 +103,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add Prometheus Middleware
+app.add_middleware(PrometheusMiddleware)
+
 # Security
 security = HTTPBearer()
 
@@ -82,6 +129,17 @@ async def health_check():
             "notification": "unknown",
         },
     }
+
+
+@app.get("/metrics")
+async def metrics():
+    """
+    Prometheus metrics endpoint
+    """
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )
 
 
 # Include routers from api modules

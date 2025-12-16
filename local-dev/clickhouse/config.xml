@@ -1,0 +1,15 @@
+<clickhouse>
+    <!-- Listen on all interfaces -->
+    <listen_host>::</listen_host>
+    
+    <!-- Logging -->
+    <logger>
+        <level>information</level>
+        <console>true</console>
+    </logger>
+    
+    <!-- Allow queries without password (for local development) -->
+    <allow_no_password>1</allow_no_password>
+    <allow_plaintext_password>1</allow_plaintext_password>
+    <allow_implicit_no_password>1</allow_implicit_no_password>
+</clickhouse>

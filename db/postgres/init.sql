@@ -1,29 +1,13 @@
 -- PostgreSQL initialization script
--- Multi-tenant crypto analytics platform
+-- Multi-user crypto analytics platform
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Tenants table - multi-tenant isolation
-CREATE TABLE tenants (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    api_key VARCHAR(255) UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT true,
-    settings JSONB DEFAULT '{}'::jsonb,
-    CONSTRAINT tenants_name_check CHECK (length(name) >= 2)
-);
-
-CREATE INDEX idx_tenants_api_key ON tenants(api_key);
-CREATE INDEX idx_tenants_active ON tenants(is_active);
-
--- Users table - per-tenant users
+-- Users table
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    email VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     roles VARCHAR(50)[] DEFAULT ARRAY['user']::VARCHAR[],
     is_active BOOLEAN DEFAULT true,
@@ -31,11 +15,9 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login_at TIMESTAMP,
     metadata JSONB DEFAULT '{}'::jsonb,
-    CONSTRAINT users_tenant_email_unique UNIQUE(tenant_id, email),
     CONSTRAINT users_email_format CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
 );
 
-CREATE INDEX idx_users_tenant_id ON users(tenant_id);
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_active ON users(is_active);
 
@@ -65,7 +47,6 @@ CREATE INDEX idx_tickers_base_currency ON tickers(base_currency);
 -- Alert subscriptions
 CREATE TABLE alert_subscriptions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     ticker_symbol VARCHAR(20) NOT NULL,
     condition_type VARCHAR(50) NOT NULL,  -- price_above, price_below, volume_spike, price_change_pct
@@ -83,7 +64,6 @@ CREATE TABLE alert_subscriptions (
     CONSTRAINT alert_valid_condition CHECK (condition_type IN ('price_above', 'price_below', 'volume_spike', 'price_change_pct', 'volatility_high'))
 );
 
-CREATE INDEX idx_alerts_tenant_id ON alert_subscriptions(tenant_id);
 CREATE INDEX idx_alerts_user_id ON alert_subscriptions(user_id);
 CREATE INDEX idx_alerts_ticker ON alert_subscriptions(ticker_symbol);
 CREATE INDEX idx_alerts_active ON alert_subscriptions(is_active);
@@ -91,7 +71,6 @@ CREATE INDEX idx_alerts_active ON alert_subscriptions(is_active);
 -- Stream sessions tracking
 CREATE TABLE stream_sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     stream_id VARCHAR(100) NOT NULL UNIQUE,
     symbols VARCHAR(20)[] NOT NULL,
     exchange VARCHAR(50) NOT NULL,
@@ -105,14 +84,12 @@ CREATE TABLE stream_sessions (
     metadata JSONB DEFAULT '{}'::jsonb
 );
 
-CREATE INDEX idx_stream_sessions_tenant_id ON stream_sessions(tenant_id);
 CREATE INDEX idx_stream_sessions_stream_id ON stream_sessions(stream_id);
 CREATE INDEX idx_stream_sessions_status ON stream_sessions(status);
 
 -- Notification logs
 CREATE TABLE notification_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     notification_type VARCHAR(20) NOT NULL,  -- email, sms, push, sns
     subject VARCHAR(500),
@@ -128,7 +105,6 @@ CREATE TABLE notification_logs (
     metadata JSONB DEFAULT '{}'::jsonb
 );
 
-CREATE INDEX idx_notifications_tenant_id ON notification_logs(tenant_id);
 CREATE INDEX idx_notifications_user_id ON notification_logs(user_id);
 CREATE INDEX idx_notifications_status ON notification_logs(status);
 CREATE INDEX idx_notifications_created_at ON notification_logs(created_at DESC);
@@ -136,7 +112,6 @@ CREATE INDEX idx_notifications_created_at ON notification_logs(created_at DESC);
 -- Archive jobs tracking
 CREATE TABLE archive_jobs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     archive_id VARCHAR(100) NOT NULL UNIQUE,
     data_type VARCHAR(50) NOT NULL,  -- market_data, candles, alerts
     start_time TIMESTAMP NOT NULL,
@@ -152,7 +127,6 @@ CREATE TABLE archive_jobs (
     metadata JSONB DEFAULT '{}'::jsonb
 );
 
-CREATE INDEX idx_archive_jobs_tenant_id ON archive_jobs(tenant_id);
 CREATE INDEX idx_archive_jobs_archive_id ON archive_jobs(archive_id);
 CREATE INDEX idx_archive_jobs_status ON archive_jobs(status);
 CREATE INDEX idx_archive_jobs_created_at ON archive_jobs(created_at DESC);
@@ -167,9 +141,6 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create triggers for updated_at
-CREATE TRIGGER update_tenants_updated_at BEFORE UPDATE ON tenants
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -179,15 +150,9 @@ CREATE TRIGGER update_tickers_updated_at BEFORE UPDATE ON tickers
 CREATE TRIGGER update_alerts_updated_at BEFORE UPDATE ON alert_subscriptions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Insert sample data for development
-INSERT INTO tenants (name, api_key) VALUES 
-    ('Demo Tenant', 'demo-api-key-12345'),
-    ('Test Tenant', 'test-api-key-67890');
-
 INSERT INTO tickers (symbol, name, exchange, base_currency, quote_currency) VALUES
     ('BTCUSDT', 'Bitcoin', 'binance', 'BTC', 'USDT'),
     ('ETHUSDT', 'Ethereum', 'binance', 'ETH', 'USDT'),
     ('BNBUSDT', 'Binance Coin', 'binance', 'BNB', 'USDT'),
     ('ADAUSDT', 'Cardano', 'binance', 'ADA', 'USDT'),
     ('SOLUSDT', 'Solana', 'binance', 'SOL', 'USDT');
-
