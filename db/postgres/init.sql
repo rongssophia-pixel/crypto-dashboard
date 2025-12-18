@@ -150,6 +150,24 @@ CREATE TRIGGER update_tickers_updated_at BEFORE UPDATE ON tickers
 CREATE TRIGGER update_alerts_updated_at BEFORE UPDATE ON alert_subscriptions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Refresh tokens table for JWT authentication
+CREATE TABLE refresh_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_jti VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    revoked_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT refresh_tokens_jti_unique UNIQUE (token_jti)
+);
+
+CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_jti ON refresh_tokens(token_jti);
+CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+CREATE INDEX idx_refresh_tokens_revoked_at ON refresh_tokens(revoked_at);
+
+COMMENT ON TABLE refresh_tokens IS 'Stores refresh tokens for JWT authentication with revocation support';
+
 INSERT INTO tickers (symbol, name, exchange, base_currency, quote_currency) VALUES
     ('BTCUSDT', 'Bitcoin', 'binance', 'BTC', 'USDT'),
     ('ETHUSDT', 'Ethereum', 'binance', 'ETH', 'USDT'),

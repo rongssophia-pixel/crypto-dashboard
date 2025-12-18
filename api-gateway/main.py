@@ -3,12 +3,22 @@ API Gateway Main Entry Point
 Unified REST API for all services
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path so we can import proto and shared modules
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
 
-from api import analytics, auth, ingestion, storage
+from api import analytics, auth, ingestion, storage, websocket
 from config import settings
+from services.websocket_manager import ConnectionManager
+from services.kafka_consumer_service import WebSocketKafkaConsumer
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -72,11 +82,46 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info(f"Starting {settings.service_name}...")
+    
+    # Initialize WebSocket components
+    logger.info("Initializing WebSocket components...")
+    connection_manager = ConnectionManager.get_instance()
+    kafka_consumer = WebSocketKafkaConsumer(connection_manager)
+    
+    # Store in app state
+    app.state.ws_manager = connection_manager
+    app.state.kafka_consumer = kafka_consumer
+    
+    # Start Kafka consumer
+    try:
+        await kafka_consumer.start()
+        logger.info("Kafka consumer started successfully")
+        
+        # Start consumer loop in background
+        consume_task = asyncio.create_task(kafka_consumer.consume_loop())
+        app.state.consume_task = consume_task
+        logger.info("Kafka consume loop started")
+        
+    except Exception as e:
+        logger.error(f"Failed to start Kafka consumer: {e}", exc_info=True)
+        logger.warning("WebSocket will run without Kafka streaming")
 
     yield
 
     # Shutdown
     logger.info(f"Shutting down {settings.service_name}...")
+    
+    # Stop Kafka consumer
+    if hasattr(app.state, "kafka_consumer"):
+        await app.state.kafka_consumer.stop()
+    
+    # Cancel consume task
+    if hasattr(app.state, "consume_task"):
+        app.state.consume_task.cancel()
+        try:
+            await app.state.consume_task
+        except asyncio.CancelledError:
+            pass
 
     # Close gRPC channels
     if hasattr(analytics, "close_channel"):
@@ -147,6 +192,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(ingestion.router, prefix="/api/v1/ingestion", tags=["Ingestion"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
 app.include_router(storage.router, prefix="/api/v1/storage", tags=["Storage"])
+app.include_router(websocket.router, tags=["WebSocket"])
 # app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["Notifications"])
 
 

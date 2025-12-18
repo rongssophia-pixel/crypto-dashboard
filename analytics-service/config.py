@@ -2,11 +2,17 @@
 Analytics Service Configuration
 """
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Service configuration settings"""
+    
+    model_config = SettingsConfigDict(
+        env_file="../.env",
+        case_sensitive=False,
+        extra="ignore"
+    )
     
     service_name: str = "analytics-service"
     service_port: int = 50052  # gRPC port
@@ -22,7 +28,7 @@ class Settings(BaseSettings):
     clickhouse_password: str = ""
     
     # JWT configuration
-    jwt_secret_key: str = "dev-secret-key-change-in-production"
+    jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     
     # Monitoring
@@ -37,10 +43,6 @@ class Settings(BaseSettings):
     # Cache configuration
     cache_enabled: bool = True
     cache_ttl_seconds: int = 60
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
 
 
 settings = Settings()

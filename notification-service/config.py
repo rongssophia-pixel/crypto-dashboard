@@ -1,10 +1,16 @@
 """Notification Service Configuration"""
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file="../.env",
+        case_sensitive=False,
+        extra="ignore"
+    )
+    
     service_name: str = "notification-service"
     service_port: int = 50054
     
@@ -38,11 +44,6 @@ class Settings(BaseSettings):
     # Retry logic
     max_retry_attempts: int = 3
     retry_interval_seconds: int = 60
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-        extra = "ignore"  # Ignore extra fields from shared .env file
 
 
 settings = Settings()

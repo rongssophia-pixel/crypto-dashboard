@@ -3,6 +3,13 @@ Ingestion Service Main Entry Point
 Handles real-time data collection from crypto exchanges
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path so we can import proto and shared modules
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 import asyncio
 import logging
 from contextlib import asynccontextmanager

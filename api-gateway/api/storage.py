@@ -9,7 +9,8 @@ from typing import List
 
 from config import settings
 from fastapi import APIRouter, Depends, HTTPException, Query
-from middleware.auth_middleware import verify_token
+from middleware.auth_middleware import require_auth
+from shared.auth.jwt_handler import UserContext
 
 from proto import common_pb2, storage_pb2
 from shared.grpc_client.client_factory import GRPCClientFactory
@@ -40,13 +41,13 @@ async def archive_data(
     end_time: datetime,
     data_type: str,
     symbols: List[str] = Query(None),
-    token: dict = Depends(verify_token),
+    current_user: UserContext = Depends(require_auth),
 ):
     """Trigger archive job"""
     client = get_storage_client()
     try:
-        user_id = token.get("sub")
-        roles = token.get("roles", [])
+        user_id = current_user.user_id
+        roles = current_user.roles
 
         request = storage_pb2.ArchiveRequest(
             context=common_pb2.UserContext(user_id=user_id, roles=roles),
@@ -72,13 +73,13 @@ async def archive_data(
 async def query_archive(
     sql_query: str,
     max_results: int = 1000,
-    token: dict = Depends(verify_token),
+    current_user: UserContext = Depends(require_auth),
 ):
     """Query archived data"""
     client = get_storage_client()
     try:
-        user_id = token.get("sub")
-        roles = token.get("roles", [])
+        user_id = current_user.user_id
+        roles = current_user.roles
 
         request = storage_pb2.ArchiveQueryRequest(
             context=common_pb2.UserContext(user_id=user_id, roles=roles),
@@ -106,13 +107,13 @@ async def query_archive(
 async def list_archives(
     limit: int = 20,
     offset: int = 0,
-    token: dict = Depends(verify_token),
+    current_user: UserContext = Depends(require_auth),
 ):
     """List archives"""
     client = get_storage_client()
     try:
-        user_id = token.get("sub")
-        roles = token.get("roles", [])
+        user_id = current_user.user_id
+        roles = current_user.roles
 
         request = storage_pb2.ListArchivesRequest(
             context=common_pb2.UserContext(user_id=user_id, roles=roles),
@@ -150,13 +151,13 @@ async def list_archives(
 @router.get("/archives/{archive_id}/status")
 async def get_archive_status(
     archive_id: str,
-    token: dict = Depends(verify_token),
+    current_user: UserContext = Depends(require_auth),
 ):
     """Get archive status"""
     client = get_storage_client()
     try:
-        user_id = token.get("sub")
-        roles = token.get("roles", [])
+        user_id = current_user.user_id
+        roles = current_user.roles
 
         request = storage_pb2.ArchiveStatusRequest(
             context=common_pb2.UserContext(user_id=user_id, roles=roles),

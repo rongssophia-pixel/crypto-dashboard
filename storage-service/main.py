@@ -3,19 +3,21 @@ Storage Service Main Entry Point
 Handles S3 archival and Athena queries
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path so we can import proto and shared modules
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 import asyncio
 import logging
-import os
-import sys
 from concurrent import futures
 
 import boto3
 import grpc
 from fastapi import FastAPI
 from prometheus_client import make_asgi_app
-
-# Add project root to python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Dynamic import for ClickHouseRepository from analytics-service
 # (Since 'analytics-service' is not a valid python package name)

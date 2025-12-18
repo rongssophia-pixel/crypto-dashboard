@@ -9,8 +9,13 @@ pydantic[email]
 pydantic-settings
 python-jose[cryptography]
 passlib[bcrypt]
+bcrypt>=4.0.0,<5.0.0  # Explicit bcrypt version for passlib compatibility
 prometheus-client
 httpx
+asyncpg
+
+# Async Kafka client for WebSocket streaming
+aiokafka
 
 # Development tools
 flake8

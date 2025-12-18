@@ -479,18 +479,20 @@ class ClickHouseRepository:
         if not self.client:
             raise RuntimeError("ClickHouse client not connected")
 
-        # Use argMax to get the latest record for each symbol
+        # Use ORDER BY timestamp DESC and LIMIT BY symbol to get latest record per symbol
+        # This avoids the nested aggregate function issue
         query = """
             SELECT
                 symbol,
-                argMax(timestamp, timestamp) as timestamp,
-                argMax(price, timestamp) as price,
-                argMax(volume, timestamp) as volume,
-                argMax(bid_price, timestamp) as bid_price,
-                argMax(ask_price, timestamp) as ask_price
+                timestamp,
+                price,
+                volume,
+                bid_price,
+                ask_price
             FROM market_data
             WHERE symbol IN %(symbols)s
-            GROUP BY symbol
+            ORDER BY timestamp DESC
+            LIMIT 1 BY symbol
         """
 
         params = {

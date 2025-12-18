@@ -15,6 +15,7 @@ ENV/
 *.egg-info/
 dist/
 build/
+*.spec
 
 # IDEs
 .vscode/
@@ -26,6 +27,7 @@ build/
 # Environment
 .env
 .env.local
+docker-compose.override.yml
 
 # Docker
 *.log
@@ -45,7 +47,9 @@ Thumbs.db
 
 # Testing
 .pytest_cache/
+.mypy_cache/
 .coverage
+coverage/
 htmlcov/
 .tox/
 *.cover
@@ -54,12 +58,23 @@ htmlcov/
 # Monitoring
 monitoring/grafana/data/
 
-# IDE
-.vscode/
-.idea/
-
 # Code quality
 .flake8.cache
 
+# Frontend / Node
+node_modules/
+.next/
+out/
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
 TICKETS*.md
 scripts/install_and_pin_dependencies.sh
+
+
+.cursor/

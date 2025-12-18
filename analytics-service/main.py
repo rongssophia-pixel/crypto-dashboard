@@ -3,6 +3,13 @@ Analytics Service Main Entry Point
 Real-time query engine for market data
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path so we can import proto and shared modules
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -265,7 +272,6 @@ async def get_latest_prices(
         service = get_analytics_service()
         with REQUEST_LATENCY.labels(method="get_latest_prices").time():
             result = await service.get_latest_prices(
-                tenant_id=tenant_id,
                 symbols=symbols,
             )
         REQUEST_COUNT.labels(method="get_latest_prices", status="success").inc()
@@ -297,7 +303,6 @@ async def get_candles(
         service = get_analytics_service()
         with REQUEST_LATENCY.labels(method="get_candles").time():
             result = await service.get_candles(
-                tenant_id=tenant_id,
                 symbol=symbol,
                 interval=interval,
                 start_time=start_time,
@@ -336,7 +341,6 @@ async def get_aggregated_metrics(
         service = get_analytics_service()
         with REQUEST_LATENCY.labels(method="get_aggregated_metrics").time():
             result = await service.get_aggregated_metrics(
-                tenant_id=tenant_id,
                 symbol=symbol,
                 metric_types=metric_types,
                 start_time=start_time,
@@ -373,7 +377,6 @@ async def query_market_data(
         service = get_analytics_service()
         with REQUEST_LATENCY.labels(method="query_market_data").time():
             result = await service.query_market_data(
-                tenant_id=tenant_id,
                 symbols=symbols,
                 start_time=start_time,
                 end_time=end_time,

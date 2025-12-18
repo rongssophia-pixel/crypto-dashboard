@@ -29,8 +29,8 @@ class BinanceConnector:
         self,
         api_key: Optional[str] = None,
         api_secret: Optional[str] = None,
-        # websocket_url: str = "wss://stream.binance.com:9443",
-        websocket_url: str = "wss://ws-api.binance.us:443/ws-api/v3",
+        # Use the correct WebSocket streaming URL for Binance.US
+        websocket_url: str = "wss://stream.binance.us:9443",
     ):
         """
         Initialize Binance connector
@@ -297,6 +297,7 @@ class BinanceConnector:
         data = raw_data.get("data", {})
 
         return {
+            "type": "ticker",  # Add stream type
             "symbol": data.get("s"),
             "price": float(data.get("c", 0)),
             "volume": float(data.get("v", 0)),
@@ -322,6 +323,7 @@ class BinanceConnector:
         data = raw_data.get("data", {})
 
         return {
+            "type": "trade",  # Add stream type
             "symbol": data.get("s"),
             "price": float(data.get("p", 0)),
             "volume": float(data.get("q", 0)),
@@ -340,6 +342,7 @@ class BinanceConnector:
         kline = data.get("k", {})
 
         return {
+            "type": "kline",  # Add stream type
             "symbol": kline.get("s"),
             "interval": kline.get("i"),
             "timestamp": kline.get("t"),
@@ -388,6 +391,16 @@ class BinanceConnector:
                     async for message in websocket:
                         try:
                             data = json.loads(message)
+                            
+                            # Log first few messages for debugging
+                            if not hasattr(self, '_message_count'):
+                                self._message_count = {}
+                            if connection_id not in self._message_count:
+                                self._message_count[connection_id] = 0
+                            
+                            self._message_count[connection_id] += 1
+                            if self._message_count[connection_id] <= 3:
+                                logger.info(f"WebSocket message #{self._message_count[connection_id]} received: {json.dumps(data)[:200]}")
 
                             # Normalize based on stream type
                             if stream_type == "ticker":

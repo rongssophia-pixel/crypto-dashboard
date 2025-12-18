@@ -4,15 +4,23 @@ Proxy to Ingestion Service via gRPC
 """
 
 import logging
+import sys
+from pathlib import Path
 from typing import List, Optional
 import grpc
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
+# Add project root to path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 from config import settings
 from proto import ingestion_pb2
 from proto import ingestion_pb2_grpc
 from proto import common_pb2
+from shared.auth.jwt_handler import UserContext
+from middleware.auth_middleware import require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -169,3 +177,21 @@ async def list_active_streams():
     # We might need to implement it in the service first or remove this endpoint.
     # For now, return not implemented.
     raise HTTPException(status_code=501, detail="Not implemented")
+
+
+@router.get("/streams/mine")
+async def get_my_streams(current_user: UserContext = Depends(require_auth)):
+    """
+    Get current user's streams (PROTECTED ENDPOINT EXAMPLE)
+    
+    This endpoint demonstrates JWT authentication with the require_auth dependency.
+    Only authenticated users with valid JWT tokens can access this endpoint.
+    """
+    # In a real implementation, you would filter streams by user_id
+    # For now, return user info to demonstrate authentication works
+    return {
+        "user_id": current_user.user_id,
+        "email": current_user.email,
+        "message": "This endpoint is protected - only accessible with valid JWT token",
+        "streams": []  # Would contain user's actual streams
+    }

@@ -5,15 +5,23 @@ Proxy to Analytics Service via gRPC
 
 import logging
 import math
+import sys
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import List
 
 import grpc
 from config import settings
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 
+# Add project root to path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 from proto import analytics_pb2, analytics_pb2_grpc, common_pb2
+from shared.auth.jwt_handler import UserContext
+from middleware.auth_middleware import require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -248,16 +256,22 @@ async def query_candles(query: CandleQuery):
 
 
 @router.get("/market-data/latest")
-async def get_latest_prices(symbols: List[str] = Query(...)):
-    """Get latest prices for symbols"""
+async def get_latest_prices(symbols: str = Query(...)):
+    """Get latest prices for symbols (comma-separated or multiple params)"""
     try:
         stub = get_analytics_stub()
+
+        # Parse symbols - handle both comma-separated string and list
+        if isinstance(symbols, str):
+            symbol_list = [s.strip() for s in symbols.split(',') if s.strip()]
+        else:
+            symbol_list = symbols
 
         # Build gRPC request - use QueryMarketData with limit=1 per symbol
         # For a more efficient implementation, we'd add a dedicated GetLatestPrices RPC
         results = []
 
-        for symbol in symbols:
+        for symbol in symbol_list:
             request = analytics_pb2.QueryRequest()
             request.symbols.append(symbol)
             # Use a recent time range
@@ -286,7 +300,8 @@ async def get_latest_prices(symbols: List[str] = Query(...)):
                     }
                 )
 
-        return {"data": results}
+        # Return "prices" to match frontend expectation
+        return {"prices": results}
 
     except grpc.RpcError as e:
         logger.error(f"gRPC error in get_latest_prices: {e}")
@@ -368,3 +383,25 @@ async def get_candles(
         limit=limit,
     )
     return await query_candles(query)
+
+
+@router.get("/watchlist")
+async def get_watchlist(current_user: UserContext = Depends(require_auth)):
+    """
+    Get user's crypto watchlist (PROTECTED ENDPOINT EXAMPLE)
+    
+    This endpoint demonstrates JWT authentication with the require_auth dependency.
+    Only authenticated users with valid JWT tokens can access this endpoint.
+    In a real implementation, this would return the user's saved watchlist from the database.
+    """
+    # In a real implementation, you would query user's watchlist from database
+    # For now, return user info to demonstrate authentication works
+    return {
+        "user_id": current_user.user_id,
+        "email": current_user.email,
+        "message": "This endpoint is protected - only accessible with valid JWT token",
+        "watchlist": [
+            {"symbol": "BTCUSDT", "added_at": "2025-12-01T00:00:00Z"},
+            {"symbol": "ETHUSDT", "added_at": "2025-12-01T00:00:00Z"},
+        ]  # Would contain user's actual watchlist
+    }

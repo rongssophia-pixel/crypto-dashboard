@@ -3,7 +3,7 @@ Stream Processing Service Configuration
 Loads configuration from environment variables
 """
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 
@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     """
     Service configuration settings
     """
+    
+    model_config = SettingsConfigDict(
+        env_file="../.env",
+        case_sensitive=False,
+        extra="ignore"
+    )
     
     # Service info
     service_name: str = "stream-processing-service"
@@ -33,7 +39,7 @@ class Settings(BaseSettings):
     clickhouse_port: int = 9000
     clickhouse_db: str
     clickhouse_user: str = "default"
-    clickhouse_password: str = ""
+    clickhouse_password: str
     
     # Processing configuration
     candle_intervals: str = "1m,5m,15m,1h"  # Comma-separated
@@ -58,10 +64,6 @@ class Settings(BaseSettings):
     def candle_interval_list(self) -> list:
         """Get candle intervals as a list"""
         return [i.strip() for i in self.candle_intervals.split(",")]
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
 
 
 # Global settings instance

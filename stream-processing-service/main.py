@@ -3,17 +3,20 @@ Stream Processing Service Main Entry Point
 Handles data transformation and aggregation from Kafka to ClickHouse
 """
 
-import logging
 import sys
+from pathlib import Path
+
+# Add project root to Python path so we can import proto and shared modules
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Depends
 from fastapi.responses import Response
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-
-# Add shared to path for imports
-sys.path.insert(0, "/app")
 
 from config import settings
 from shared.kafka_utils import KafkaConsumerWrapper
