@@ -65,6 +65,8 @@ class ClickHouseRepository:
         database: str,
         user: str = "default",
         password: str = "",
+        secure: bool = False,
+        verify: bool = True,
     ):
         """
         Initialize repository with ClickHouse connection parameters
@@ -75,12 +77,16 @@ class ClickHouseRepository:
             database: Database name
             user: Username
             password: Password
+            secure: Use TLS/SSL
+            verify: Verify SSL certificate
         """
         self.host = host
         self.port = port
         self.database = database
         self.user = user
         self.password = password
+        self.secure = secure
+        self.verify = verify
         self.client: Optional[Client] = None
 
         logger.info(f"ClickHouseRepository initialized for {host}:{port}/{database}")
@@ -95,6 +101,8 @@ class ClickHouseRepository:
             database=self.database,
             user=self.user,
             password=self.password,
+            secure=self.secure,
+            verify=self.verify,
         )
 
         # Test connection

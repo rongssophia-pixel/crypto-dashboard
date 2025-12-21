@@ -91,6 +91,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             database=settings.clickhouse_db,
             user=settings.clickhouse_user,
             password=settings.clickhouse_password,
+            secure=settings.clickhouse_secure,
+            verify=settings.clickhouse_verify,
         )
         await app_state.clickhouse_repository.connect()
         logger.info("✅ ClickHouse repository initialized")

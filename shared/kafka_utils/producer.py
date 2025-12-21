@@ -22,6 +22,10 @@ class KafkaProducerWrapper:
         client_id: Optional[str] = None,
         compression_type: str = "gzip",
         acks: str = "all",
+        security_protocol: str = "PLAINTEXT",
+        sasl_mechanism: Optional[str] = None,
+        sasl_plain_username: Optional[str] = None,
+        sasl_plain_password: Optional[str] = None,
     ):
         self.bootstrap_servers = bootstrap_servers
         self.producer = KafkaProducer(
@@ -34,6 +38,10 @@ class KafkaProducerWrapper:
             retries=3,
             max_in_flight_requests_per_connection=5,
             request_timeout_ms=30000,
+            security_protocol=security_protocol,
+            sasl_mechanism=sasl_mechanism,
+            sasl_plain_username=sasl_plain_username,
+            sasl_plain_password=sasl_plain_password,
         )
         logger.info(f"Kafka producer initialized: {bootstrap_servers}")
 

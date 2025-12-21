@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_topic_processed_market_data: str = "crypto.processed.market-data"
     kafka_consumer_group: str = "api-gateway-websocket-group"
+    kafka_security_protocol: str = "PLAINTEXT"
+    kafka_sasl_mechanism: Optional[str] = None
+    kafka_sasl_username: Optional[str] = None
+    kafka_sasl_password: Optional[str] = None
     
     # WebSocket configuration
     websocket_heartbeat_interval: int = 30  # seconds

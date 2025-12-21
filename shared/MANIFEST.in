@@ -1,0 +1,8 @@
+include README.md
+include requirements.txt
+recursive-include kafka_utils *.py
+recursive-include auth *.py
+recursive-include models *.py
+recursive-include grpc_client *.py
+global-exclude __pycache__
+global-exclude *.py[co]

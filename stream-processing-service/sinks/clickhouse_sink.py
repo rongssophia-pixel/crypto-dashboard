@@ -29,6 +29,8 @@ class ClickHouseSink:
         password: str = "",
         batch_size: int = 100,
         flush_interval: int = 5,
+        secure: bool = False,
+        verify: bool = True,
     ):
         """
         Initialize ClickHouse sink
@@ -41,6 +43,8 @@ class ClickHouseSink:
             password: Password
             batch_size: Number of records to batch before flush
             flush_interval: Seconds between automatic flushes
+            secure: Use TLS/SSL
+            verify: Verify SSL certificate
         """
         self.host = host
         self.port = port
@@ -49,6 +53,8 @@ class ClickHouseSink:
         self.password = password
         self.batch_size = batch_size
         self.flush_interval = flush_interval
+        self.secure = secure
+        self.verify = verify
         
         self.client: Optional[Client] = None
         self._market_data_buffer: List[Dict[str, Any]] = []
@@ -74,6 +80,8 @@ class ClickHouseSink:
             database=self.database,
             user=self.user,
             password=self.password,
+            secure=self.secure,
+            verify=self.verify,
         )
         
         # Test connection

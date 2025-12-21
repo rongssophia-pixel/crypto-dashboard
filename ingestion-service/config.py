@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_topic_raw_market_data: str = "crypto.raw.market-data"
     kafka_topic_processed_market_data: str = "crypto.processed.market-data"
+    kafka_security_protocol: str = "PLAINTEXT"
+    kafka_sasl_mechanism: Optional[str] = None
+    kafka_sasl_username: Optional[str] = None
+    kafka_sasl_password: Optional[str] = None
     
     # PostgreSQL configuration
     # Local development: localhost

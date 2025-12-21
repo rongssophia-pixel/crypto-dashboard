@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_topic_alerts: str = "crypto.alerts"
     kafka_consumer_group: str = "notification-service-group"
+    kafka_security_protocol: str = "PLAINTEXT"
+    kafka_sasl_mechanism: Optional[str] = None
+    kafka_sasl_username: Optional[str] = None
+    kafka_sasl_password: Optional[str] = None
     
     # Retry logic
     max_retry_attempts: int = 3

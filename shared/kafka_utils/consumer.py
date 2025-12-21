@@ -25,6 +25,10 @@ class KafkaConsumerWrapper:
         session_timeout_ms: int = 30000,
         max_poll_interval_ms: int = 300000,
         heartbeat_interval_ms: int = 3000,
+        security_protocol: str = "PLAINTEXT",
+        sasl_mechanism: Optional[str] = None,
+        sasl_plain_username: Optional[str] = None,
+        sasl_plain_password: Optional[str] = None,
     ):
         self.topics = topics
         self.bootstrap_servers = bootstrap_servers
@@ -34,6 +38,10 @@ class KafkaConsumerWrapper:
         self.session_timeout_ms = session_timeout_ms
         self.max_poll_interval_ms = max_poll_interval_ms
         self.heartbeat_interval_ms = heartbeat_interval_ms
+        self.security_protocol = security_protocol
+        self.sasl_mechanism = sasl_mechanism
+        self.sasl_plain_username = sasl_plain_username
+        self.sasl_plain_password = sasl_plain_password
         self._running = False
         self.consumer: Optional[KafkaConsumer] = None
         
@@ -51,6 +59,10 @@ class KafkaConsumerWrapper:
             session_timeout_ms=self.session_timeout_ms,  # Time before Kafka considers consumer dead
             max_poll_interval_ms=self.max_poll_interval_ms,  # Max time between polls
             heartbeat_interval_ms=self.heartbeat_interval_ms,  # Heartbeat frequency
+            security_protocol=self.security_protocol,
+            sasl_mechanism=self.sasl_mechanism,
+            sasl_plain_username=self.sasl_plain_username,
+            sasl_plain_password=self.sasl_plain_password,
         )
         logger.info(f"Kafka consumer created: {self.group_id} subscribed to {self.topics}")
 

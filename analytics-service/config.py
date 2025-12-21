@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     clickhouse_db: str = "crypto_analytics"
     clickhouse_user: str = "default"
     clickhouse_password: str = ""
+    clickhouse_secure: bool = False
+    clickhouse_verify: bool = True
     
     # JWT configuration
     jwt_secret_key: str

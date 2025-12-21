@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     kafka_topic_raw_market_data: str = "crypto.raw.market-data"
     kafka_topic_processed_market_data: str = "crypto.processed.market-data"
     kafka_topic_alerts: str = "crypto.alerts"
+    kafka_security_protocol: str = "PLAINTEXT"
+    kafka_sasl_mechanism: Optional[str] = None
+    kafka_sasl_username: Optional[str] = None
+    kafka_sasl_password: Optional[str] = None
     
     # ClickHouse
     # Local development: localhost
@@ -40,6 +44,8 @@ class Settings(BaseSettings):
     clickhouse_db: str
     clickhouse_user: str = "default"
     clickhouse_password: str
+    clickhouse_secure: bool = False
+    clickhouse_verify: bool = True
     
     # Processing configuration
     candle_intervals: str = "1m,5m,15m,1h"  # Comma-separated
