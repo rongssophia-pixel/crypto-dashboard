@@ -31,7 +31,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   const userInitials = user?.email
     ? user.email
         .split('@')[0]
-        .substring(0, 2)
+        ?.substring(0, 2)
         .toUpperCase()
     : 'U';
 

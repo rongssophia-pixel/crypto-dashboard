@@ -48,7 +48,7 @@ interface StreamManagementProps {
 
 export function StreamManagement({
   streams = [],
-  isLoading = false,
+  isLoading: _isLoading = false,
   onStartStream,
   onStopStream,
 }: StreamManagementProps) {

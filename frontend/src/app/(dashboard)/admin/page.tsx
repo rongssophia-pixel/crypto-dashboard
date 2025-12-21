@@ -31,7 +31,7 @@ export default function AdminPage() {
     return streamsList.map((stream: any) => ({
       id: stream.stream_id || stream.id,
       symbols: stream.symbols || [],
-      status: stream.is_active ? 'running' : 'stopped',
+      status: stream.is_active ? ('running' as const) : ('stopped' as const),
       event_count: stream.events_processed || stream.event_count || 0,
       started_at: stream.started_at || stream.created_at,
     }));

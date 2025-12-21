@@ -71,16 +71,26 @@ export function useSystemHealth() {
   });
 }
 
+interface DashboardStatsResponse {
+  service: string;
+  status: string;
+  version: string;
+}
+
 /**
  * Get dashboard statistics
  * Fetches aggregated stats for the dashboard overview
  */
 export function useDashboardStats() {
-  return useQuery({
+  return useQuery<DashboardStatsResponse>({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
       // Fetch from root endpoint which includes service info
-      const response = await apiClient.get<any>('/');
+      const response = await apiClient.get<{
+        service?: string;
+        status?: string;
+        version?: string;
+      }>('/');
       
       return {
         service: response.service || 'API Gateway',

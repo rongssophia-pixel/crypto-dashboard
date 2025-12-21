@@ -44,11 +44,6 @@ export default function RealtimePage() {
     toast.success(`Subscribed to ${symbol}`);
   };
 
-  const handleRemoveSymbol = (symbol: string) => {
-    setSubscribedSymbols(subscribedSymbols.filter((s) => s !== symbol));
-    toast.success(`Unsubscribed from ${symbol}`);
-  };
-
   const handleReconnect = () => {
     const accessToken = localStorage.getItem('access_token');
     if (accessToken) {

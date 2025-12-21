@@ -38,7 +38,7 @@ interface ArchiveManagementProps {
 
 export function ArchiveManagement({
   archives = [],
-  isLoading = false,
+  isLoading: _isLoading = false,
   onCreateArchive,
   onDownload,
 }: ArchiveManagementProps) {

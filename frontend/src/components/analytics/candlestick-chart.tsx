@@ -227,20 +227,7 @@ export function CandlestickChart({
   const maxPrice = Math.max(...allHighs);
   const buffer = (maxPrice - minPrice) * 0.1;
 
-  // Calculate volume min/max to improve visual scaling
-  const allVolumes = data.map(d => d.volume);
-  const minVolume = Math.min(...allVolumes);
-  const maxVolume = Math.max(...allVolumes);
-  // Start from 0 to show absolute scale, but if variations are small relative to total, 
-  // users might prefer auto or dataMin. 
-  // However, "all bars same height" usually means max is too big or min is too high.
-  // If bars look same height (and not small), it means they are all close to max?
-  // Or maybe user wants logarithmic scale?
-  // Let's try domain={['auto', 'auto']} which means usually 0 to max. 
-  // If they look same height, maybe data is uniform.
-  // But if the user complains, maybe we should try to exaggerate differences:
-  // domain={[minVolume * 0.9, maxVolume * 1.05]}
-  // Let's try setting domain to 'dataMin' 'dataMax' for volume to show fluctuations better.
+  // Volume chart uses domain={['dataMin', 'dataMax']} to automatically scale and show fluctuations
 
   return (
     <Card>

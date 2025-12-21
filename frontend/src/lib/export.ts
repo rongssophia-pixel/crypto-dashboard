@@ -20,7 +20,12 @@ export function exportToCSV<T extends Record<string, any>>(
   }
 
   // Get headers from first object if not provided
-  const csvHeaders = headers || Object.keys(data[0]);
+  const firstItem = data[0];
+  if (!firstItem) {
+    console.warn('No data to export');
+    return;
+  }
+  const csvHeaders = headers || Object.keys(firstItem);
   
   // Create CSV content
   const csvRows = [

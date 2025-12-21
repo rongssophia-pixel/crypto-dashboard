@@ -3,17 +3,47 @@
  * Additional auth-related hooks beyond the main useAuth context hook
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+
+interface User {
+  id: string;
+  email: string;
+  username: string;
+  is_active: boolean;
+  is_verified: boolean;
+  created_at: string;
+}
+
+interface UserResponse {
+  user: User;
+}
+
+interface VerifyEmailResponse {
+  message: string;
+}
+
+interface ForgotPasswordResponse {
+  message: string;
+}
+
+interface ResetPasswordParams {
+  token: string;
+  new_password: string;
+}
+
+interface ResetPasswordResponse {
+  message: string;
+}
 
 /**
  * Get current user info
  */
 export function useCurrentUser() {
-  return useQuery({
+  return useQuery<UserResponse>({
     queryKey: ['current-user'],
     queryFn: async () => {
-      return apiClient.get('/api/v1/auth/me');
+      return apiClient.get<UserResponse>('/api/v1/auth/me');
     },
     retry: 1,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -24,9 +54,9 @@ export function useCurrentUser() {
  * Verify email mutation
  */
 export function useVerifyEmail() {
-  return useMutation({
+  return useMutation<VerifyEmailResponse, Error, string>({
     mutationFn: async (token: string) => {
-      return apiClient.post('/api/v1/auth/verify-email', { token });
+      return apiClient.post<VerifyEmailResponse>('/api/v1/auth/verify-email', { token });
     },
   });
 }
@@ -35,9 +65,9 @@ export function useVerifyEmail() {
  * Request password reset
  */
 export function useForgotPassword() {
-  return useMutation({
+  return useMutation<ForgotPasswordResponse, Error, string>({
     mutationFn: async (email: string) => {
-      return apiClient.post('/api/v1/auth/forgot-password', { email });
+      return apiClient.post<ForgotPasswordResponse>('/api/v1/auth/forgot-password', { email });
     },
   });
 }
@@ -46,9 +76,9 @@ export function useForgotPassword() {
  * Reset password with token
  */
 export function useResetPassword() {
-  return useMutation({
-    mutationFn: async (params: { token: string; new_password: string }) => {
-      return apiClient.post('/api/v1/auth/reset-password', params);
+  return useMutation<ResetPasswordResponse, Error, ResetPasswordParams>({
+    mutationFn: async (params: ResetPasswordParams) => {
+      return apiClient.post<ResetPasswordResponse>('/api/v1/auth/reset-password', params);
     },
   });
 }

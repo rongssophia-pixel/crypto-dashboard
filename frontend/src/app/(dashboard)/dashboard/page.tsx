@@ -44,7 +44,7 @@ export default function DashboardPage() {
 
     // Get latest update time
     const latestUpdate = prices.length > 0 
-      ? prices[0].timestamp 
+      ? prices[0]?.timestamp || new Date().toISOString()
       : new Date().toISOString();
 
     return {

@@ -62,7 +62,7 @@ export default function AnalyticsPage() {
   const { 
     mutate: queryMarketData,
     data: marketDataResponse,
-    isLoading: marketDataLoading 
+    isPending: marketDataLoading 
   } = useMarketDataQuery();
 
   // Query market data when symbol or time range changes
@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
   // Transform metrics data
   const metricsData = (() => {
     const metrics = metricsResponse?.metrics;
-    if (!metrics) {
+    if (!metrics || metrics.length === 0) {
       return {
         averagePrice: 0,
         priceVolatility: 0,
@@ -94,13 +94,19 @@ export default function AnalyticsPage() {
       };
     }
     
+    // Convert array of metrics to object
+    const metricsMap = metrics.reduce((acc, metric) => {
+      acc[metric.metric_type] = metric.value;
+      return acc;
+    }, {} as Record<string, number>);
+    
     return {
-      averagePrice: metrics.avg_price || 0,
-      priceVolatility: metrics.volatility || 0,
-      totalVolume: metrics.total_volume || 0,
-      high: metrics.max_price || 0,
-      low: metrics.min_price || 0,
-      tradeCount: metrics.trade_count || 0,
+      averagePrice: metricsMap['avg_price'] || 0,
+      priceVolatility: metricsMap['volatility'] || 0,
+      totalVolume: metricsMap['total_volume'] || 0,
+      high: metricsMap['max_price'] || 0,
+      low: metricsMap['min_price'] || 0,
+      tradeCount: metricsMap['trade_count'] || 0,
     };
   })();
 
