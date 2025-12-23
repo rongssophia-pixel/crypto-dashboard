@@ -6,6 +6,7 @@ Consumes market data from Kafka and broadcasts to WebSocket clients
 import asyncio
 import json
 import logging
+from ssl import create_default_context
 from typing import Optional
 
 from aiokafka import AIOKafkaConsumer
@@ -39,13 +40,26 @@ class WebSocketKafkaConsumer:
     async def start(self):
         """Initialize and start the Kafka consumer"""
         try:
+            # Build consumer configuration
+            consumer_config = {
+                "bootstrap_servers": settings.kafka_bootstrap_servers,
+                "group_id": settings.kafka_consumer_group,
+                "auto_offset_reset": "latest",  # Start from latest messages
+                "enable_auto_commit": True,
+                "value_deserializer": lambda m: json.loads(m.decode("utf-8")),
+                "security_protocol": settings.kafka_security_protocol,
+            }
+            
+            # Add SASL configuration if needed
+            if settings.kafka_security_protocol == "SASL_SSL":
+                consumer_config["sasl_mechanism"] = settings.kafka_sasl_mechanism
+                consumer_config["sasl_plain_username"] = settings.kafka_sasl_username
+                consumer_config["sasl_plain_password"] = settings.kafka_sasl_password
+                consumer_config["ssl_context"] = create_default_context()
+            
             self.consumer = AIOKafkaConsumer(
                 settings.kafka_topic_processed_market_data,
-                bootstrap_servers=settings.kafka_bootstrap_servers,
-                group_id=settings.kafka_consumer_group,
-                auto_offset_reset='latest',  # Start from latest messages
-                enable_auto_commit=True,
-                value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+                **consumer_config
             )
             
             await self.consumer.start()
@@ -54,7 +68,8 @@ class WebSocketKafkaConsumer:
             logger.info(
                 f"Kafka consumer started: topic={settings.kafka_topic_processed_market_data}, "
                 f"bootstrap_servers={settings.kafka_bootstrap_servers}, "
-                f"group_id={settings.kafka_consumer_group}"
+                f"group_id={settings.kafka_consumer_group}, "
+                f"security_protocol={settings.kafka_security_protocol}"
             )
             
         except Exception as e:

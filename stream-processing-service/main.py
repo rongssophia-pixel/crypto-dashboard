@@ -76,6 +76,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             bootstrap_servers=settings.kafka_bootstrap_servers,
             group_id=settings.kafka_consumer_group,
             auto_offset_reset="earliest",  # Changed from "latest" to process all messages
+            security_protocol=settings.kafka_security_protocol,
+            sasl_mechanism=settings.kafka_sasl_mechanism,
+            sasl_plain_username=settings.kafka_sasl_username,
+            sasl_plain_password=settings.kafka_sasl_password,
         )
         logger.info("✅ Kafka consumer initialized")
         

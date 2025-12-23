@@ -1,5 +1,6 @@
 """API Gateway Configuration"""
 
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

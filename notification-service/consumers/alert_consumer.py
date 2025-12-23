@@ -9,6 +9,7 @@ import logging
 from typing import Optional
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaError
+from ssl import SSLContext, create_default_context
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,11 @@ class AlertConsumer:
         business_service,
         kafka_servers: str,
         topic: str = "crypto.alerts",
-        group_id: str = "notification-service-group"
+        group_id: str = "notification-service-group",
+        security_protocol: str = "PLAINTEXT",
+        sasl_mechanism: Optional[str] = None,
+        sasl_plain_username: Optional[str] = None,
+        sasl_plain_password: Optional[str] = None,
     ):
         """
         Initialize alert consumer
@@ -34,28 +39,46 @@ class AlertConsumer:
             kafka_servers: Kafka bootstrap servers
             topic: Topic to consume from
             group_id: Consumer group ID
+            security_protocol: Security protocol (PLAINTEXT, SASL_SSL, etc.)
+            sasl_mechanism: SASL mechanism (PLAIN, SCRAM-SHA-256, etc.)
+            sasl_plain_username: SASL username
+            sasl_plain_password: SASL password
         """
         self.business_service = business_service
         self.kafka_servers = kafka_servers
         self.topic = topic
         self.group_id = group_id
+        self.security_protocol = security_protocol
+        self.sasl_mechanism = sasl_mechanism
+        self.sasl_plain_username = sasl_plain_username
+        self.sasl_plain_password = sasl_plain_password
         self.consumer: Optional[AIOKafkaConsumer] = None
         self.running = False
         logger.info(
             f"AlertConsumer initialized: topic={topic}, group={group_id}, "
-            f"servers={kafka_servers}"
+            f"servers={kafka_servers}, security_protocol={security_protocol}"
         )
     
     async def start(self):
         """Start consuming messages from Kafka"""
-        self.consumer = AIOKafkaConsumer(
-            self.topic,
-            bootstrap_servers=self.kafka_servers,
-            group_id=self.group_id,
-            auto_offset_reset='earliest',
-            enable_auto_commit=False,  # Manual commit after processing
-            value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-        )
+        # Build consumer configuration
+        consumer_config = {
+            "bootstrap_servers": self.kafka_servers,
+            "group_id": self.group_id,
+            "auto_offset_reset": "earliest",
+            "enable_auto_commit": False,  # Manual commit after processing
+            "value_deserializer": lambda m: json.loads(m.decode("utf-8")),
+            "security_protocol": self.security_protocol,
+        }
+        
+        # Add SASL configuration if needed
+        if self.security_protocol == "SASL_SSL":
+            consumer_config["sasl_mechanism"] = self.sasl_mechanism
+            consumer_config["sasl_plain_username"] = self.sasl_plain_username
+            consumer_config["sasl_plain_password"] = self.sasl_plain_password
+            consumer_config["ssl_context"] = create_default_context()
+        
+        self.consumer = AIOKafkaConsumer(self.topic, **consumer_config)
         
         try:
             await self.consumer.start()

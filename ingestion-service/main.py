@@ -179,6 +179,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         app_state.kafka_producer = KafkaProducerWrapper(
             bootstrap_servers=settings.kafka_bootstrap_servers,
             client_id=f"{settings.service_name}-producer",
+            security_protocol=settings.kafka_security_protocol,
+            sasl_mechanism=settings.kafka_sasl_mechanism,
+            sasl_plain_username=settings.kafka_sasl_username,
+            sasl_plain_password=settings.kafka_sasl_password,
         )
         logger.info("✅ Kafka producer initialized")
         

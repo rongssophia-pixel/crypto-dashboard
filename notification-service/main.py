@@ -137,7 +137,11 @@ async def lifespan(app: FastAPI):
         business_service=business_service,
         kafka_servers=settings.kafka_bootstrap_servers,
         topic=settings.kafka_topic_alerts,
-        group_id=settings.kafka_consumer_group
+        group_id=settings.kafka_consumer_group,
+        security_protocol=settings.kafka_security_protocol,
+        sasl_mechanism=settings.kafka_sasl_mechanism,
+        sasl_plain_username=settings.kafka_sasl_username,
+        sasl_plain_password=settings.kafka_sasl_password,
     )
     app_state["alert_consumer"] = alert_consumer
     consumer_task = asyncio.create_task(alert_consumer.start())
