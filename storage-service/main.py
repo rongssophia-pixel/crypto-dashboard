@@ -105,6 +105,8 @@ async def main():
         database=settings.clickhouse_db,
         user=settings.clickhouse_user,
         password=settings.clickhouse_password,
+        secure=settings.clickhouse_secure,
+        verify=settings.clickhouse_verify,
     )
     await clickhouse_repo.connect()
 

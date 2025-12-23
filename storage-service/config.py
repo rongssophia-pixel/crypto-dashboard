@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     # ClickHouse (used for exporting hot data to cold storage)
     # Railway/ClickHouse Cloud: CLICKHOUSE_HOST may include https:// prefix
+    # Local: localhost:9000, ClickHouse Cloud: use port 9440 with secure=true
     clickhouse_host: str = "localhost"
     clickhouse_port: int = 9000
     clickhouse_db: str = "crypto_analytics"
