@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Email provider
     email_provider: str = "sendgrid"  # sendgrid, mailgun, ses
     email_api_key: Optional[str] = None
-    email_from_address: str
+    email_from_address: str = "noreply@example.com"
     email_from_name: str = "Crypto Analytics"
     
     # JWT

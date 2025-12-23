@@ -12,6 +12,7 @@ sys.path.insert(0, str(project_root))
 
 import asyncio
 import logging
+import os
 from concurrent import futures
 
 import boto3

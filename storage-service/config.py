@@ -1,6 +1,7 @@
 """Storage Service Configuration"""
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -27,6 +28,7 @@ class Settings(BaseSettings):
     athena_workgroup: str = "primary"
 
     # ClickHouse (used for exporting hot data to cold storage)
+    # Railway/ClickHouse Cloud: CLICKHOUSE_HOST may include https:// prefix
     clickhouse_host: str = "localhost"
     clickhouse_port: int = 9000
     clickhouse_db: str = "crypto_analytics"
@@ -34,6 +36,20 @@ class Settings(BaseSettings):
     clickhouse_password: str
     clickhouse_secure: bool = False
     clickhouse_verify: bool = True
+    
+    @field_validator('clickhouse_host')
+    @classmethod
+    def clean_clickhouse_host(cls, v: str) -> str:
+        """Strip protocol prefix and port from ClickHouse host URL"""
+        if not v:
+            return v
+        # Remove protocol prefix (https://, http://)
+        if '://' in v:
+            v = v.split('://', 1)[1]
+        # Remove port suffix if present (e.g., host:8443)
+        if ':' in v:
+            v = v.split(':', 1)[0]
+        return v
 
     # Postgres (for job tracking)
     postgres_host: str = "localhost"

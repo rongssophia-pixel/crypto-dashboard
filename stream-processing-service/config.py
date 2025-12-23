@@ -4,6 +4,7 @@ Loads configuration from environment variables
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 from typing import Optional
 
 
@@ -39,6 +40,7 @@ class Settings(BaseSettings):
     # ClickHouse
     # Local development: localhost
     # Docker deployment: override with CLICKHOUSE_HOST=clickhouse
+    # Railway/ClickHouse Cloud: CLICKHOUSE_HOST may include https:// prefix
     clickhouse_host: str = "localhost"
     clickhouse_port: int = 9000
     clickhouse_db: str
@@ -46,6 +48,20 @@ class Settings(BaseSettings):
     clickhouse_password: str
     clickhouse_secure: bool = False
     clickhouse_verify: bool = True
+    
+    @field_validator('clickhouse_host')
+    @classmethod
+    def clean_clickhouse_host(cls, v: str) -> str:
+        """Strip protocol prefix and port from ClickHouse host URL"""
+        if not v:
+            return v
+        # Remove protocol prefix (https://, http://)
+        if '://' in v:
+            v = v.split('://', 1)[1]
+        # Remove port suffix if present (e.g., host:8443)
+        if ':' in v:
+            v = v.split(':', 1)[0]
+        return v
     
     # Processing configuration
     candle_intervals: str = "1m,5m,15m,1h"  # Comma-separated
