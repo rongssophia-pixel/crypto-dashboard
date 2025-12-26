@@ -83,6 +83,16 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {settings.service_name}...")
     
+    # Initialize database connections
+    logger.info("Initializing database connections...")
+    try:
+        await auth.user_repo.connect()
+        await auth.token_repo.connect()
+        logger.info("✅ Database connections initialized")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize database connections: {e}", exc_info=True)
+        raise
+    
     # Initialize WebSocket components
     logger.info("Initializing WebSocket components...")
     connection_manager = ConnectionManager.get_instance()
@@ -110,6 +120,14 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info(f"Shutting down {settings.service_name}...")
+    
+    # Disconnect database connections
+    try:
+        await auth.user_repo.disconnect()
+        await auth.token_repo.disconnect()
+        logger.info("✅ Database connections closed")
+    except Exception as e:
+        logger.error(f"Error closing database connections: {e}")
     
     # Stop Kafka consumer
     if hasattr(app.state, "kafka_consumer"):
