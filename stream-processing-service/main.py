@@ -65,6 +65,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             password=settings.clickhouse_password,
             batch_size=settings.batch_size,
             flush_interval=settings.flush_interval_seconds,
+            secure=settings.clickhouse_secure,
+            verify=settings.clickhouse_verify,
         )
         await app_state.clickhouse_sink.start()
         logger.info("✅ ClickHouse sink initialized")
