@@ -44,14 +44,6 @@ RUN pip install -e ./shared
 # Generate Protobufs
 RUN chmod +x scripts/generate_proto.sh && ./scripts/generate_proto.sh
 
-# Frontend Build
-WORKDIR /app/frontend
-RUN npm install
-RUN npm run build
-
-# Go back to root
-WORKDIR /app
-
 # Create log directory for supervisor
 RUN mkdir -p /var/log/supervisor
 
@@ -61,8 +53,6 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # Expose ports
 # API Gateway
 EXPOSE 8000
-# Frontend
-EXPOSE 3000
 
 # Start supervisor
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
