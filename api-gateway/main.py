@@ -102,19 +102,24 @@ async def lifespan(app: FastAPI):
     app.state.ws_manager = connection_manager
     app.state.kafka_consumer = kafka_consumer
     
-    # Start Kafka consumer
-    try:
-        await kafka_consumer.start()
-        logger.info("Kafka consumer started successfully")
-        
-        # Start consumer loop in background
-        consume_task = asyncio.create_task(kafka_consumer.consume_loop())
-        app.state.consume_task = consume_task
-        logger.info("Kafka consume loop started")
-        
-    except Exception as e:
-        logger.error(f"Failed to start Kafka consumer: {e}", exc_info=True)
-        logger.warning("WebSocket will run without Kafka streaming")
+    # Start Kafka consumer in background (don't block app startup)
+    async def start_kafka_in_background():
+        try:
+            await kafka_consumer.start()
+            logger.info("Kafka consumer started successfully")
+            
+            # Start consumer loop in background
+            consume_task = asyncio.create_task(kafka_consumer.consume_loop())
+            app.state.consume_task = consume_task
+            logger.info("Kafka consume loop started")
+            
+        except Exception as e:
+            logger.error(f"Failed to start Kafka consumer: {e}", exc_info=True)
+            logger.warning("WebSocket will run without Kafka streaming")
+    
+    # Start Kafka consumer without blocking app startup
+    asyncio.create_task(start_kafka_in_background())
+    logger.info("Kafka consumer initialization started in background")
 
     yield
 
