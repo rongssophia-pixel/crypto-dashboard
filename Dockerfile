@@ -60,7 +60,8 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Expose ports
 # API Gateway (primary service for Railway)
-EXPOSE 8000
+# Railway auto-sets PORT=8080, so we expose 8080
+EXPOSE 8080
 
 # Start supervisor
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
