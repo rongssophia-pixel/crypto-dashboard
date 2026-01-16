@@ -83,15 +83,16 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {settings.service_name}...")
     
-    # Initialize database connections
+    # Initialize database connections (non-blocking - retry on first request if needed)
     logger.info("Initializing database connections...")
     try:
         await auth.user_repo.connect()
         await auth.token_repo.connect()
         logger.info("✅ Database connections initialized")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize database connections: {e}", exc_info=True)
-        raise
+        logger.error(f"⚠️ Failed to initialize database connections: {e}", exc_info=True)
+        logger.warning("⚠️ Database connections will be retried on first request")
+        # Don't raise - allow app to start even if DB is temporarily unavailable
     
     # Initialize WebSocket components
     logger.info("Initializing WebSocket components...")
@@ -120,6 +121,12 @@ async def lifespan(app: FastAPI):
     # Start Kafka consumer without blocking app startup
     asyncio.create_task(start_kafka_in_background())
     logger.info("Kafka consumer initialization started in background")
+    
+    logger.info("============================================================")
+    logger.info(f"✅ {settings.service_name} is ready!")
+    logger.info(f"   - HTTP/FastAPI: port {settings.service_port}")
+    logger.info(f"   - Frontend CORS: {settings.frontend_url}")
+    logger.info("============================================================")
 
     yield
 

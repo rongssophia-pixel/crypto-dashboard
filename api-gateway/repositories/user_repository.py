@@ -36,7 +36,9 @@ class UserRepository:
                 self.pool = await asyncpg.create_pool(
                     self.dsn,
                     min_size=2,
-                    max_size=10
+                    max_size=10,
+                    timeout=10,  # Connection timeout in seconds
+                    command_timeout=10  # Command execution timeout
                 )
                 logger.info("Connected to PostgreSQL (users)")
             except Exception as e:
