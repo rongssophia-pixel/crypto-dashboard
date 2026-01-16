@@ -44,6 +44,14 @@ RUN pip install -e ./shared
 # Generate Protobufs
 RUN chmod +x scripts/generate_proto.sh && ./scripts/generate_proto.sh
 
+# Frontend Build - DISABLED (deployed separately on Vercel)
+# WORKDIR /app/frontend
+# RUN npm install
+# RUN npm run build
+
+# Stay in root directory
+WORKDIR /app
+
 # Create log directory for supervisor
 RUN mkdir -p /var/log/supervisor
 
@@ -51,7 +59,7 @@ RUN mkdir -p /var/log/supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Expose ports
-# API Gateway
+# API Gateway (primary service for Railway)
 EXPOSE 8000
 
 # Start supervisor
