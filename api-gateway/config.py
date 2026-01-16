@@ -1,5 +1,6 @@
 """API Gateway Configuration"""
 
+import os
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,7 +13,8 @@ class Settings(BaseSettings):
     )
     
     service_name: str = "api-gateway"
-    service_port: int = 8000
+    # Railway sets PORT env var dynamically - use it if available
+    service_port: int = int(os.getenv("PORT", "8000"))
     
     # Service endpoints
     ingestion_service_host: str = "localhost"
