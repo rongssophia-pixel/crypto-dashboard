@@ -5,3 +5,5 @@ watchPatterns = ["**/*"]
 [deploy]
 startCommand = "/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"
 restartPolicyType = "ON_FAILURE"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
