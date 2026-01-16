@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, Optional
 
-from kafka import KafkaProducer
+from confluent_kafka import Producer
 
 logger = logging.getLogger(__name__)
 
@@ -28,22 +28,39 @@ class KafkaProducerWrapper:
         sasl_plain_password: Optional[str] = None,
     ):
         self.bootstrap_servers = bootstrap_servers
-        self.producer = KafkaProducer(
-            bootstrap_servers=bootstrap_servers.split(","),
-            client_id=client_id,
-            compression_type=compression_type,
-            acks=acks,
-            value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-            key_serializer=lambda k: k.encode("utf-8") if k else None,
-            retries=3,
-            max_in_flight_requests_per_connection=5,
-            request_timeout_ms=30000,
-            security_protocol=security_protocol,
-            sasl_mechanism=sasl_mechanism,
-            sasl_plain_username=sasl_plain_username,
-            sasl_plain_password=sasl_plain_password,
-        )
+        
+        # Build configuration dict for confluent_kafka
+        config = {
+            'bootstrap.servers': bootstrap_servers,
+            'compression.type': compression_type,
+            'acks': acks,
+            'client.id': client_id or 'producer',
+            'retries': 3,
+            'request.timeout.ms': 30000,
+            'delivery.timeout.ms': 120000,
+            # Important for Confluent Cloud stability
+            'socket.keepalive.enable': True,
+            'max.in.flight.requests.per.connection': 5,
+        }
+        
+        # Add SASL configuration if needed
+        if security_protocol == "SASL_SSL":
+            config['security.protocol'] = 'SASL_SSL'
+            config['sasl.mechanism'] = sasl_mechanism or 'PLAIN'
+            config['sasl.username'] = sasl_plain_username
+            config['sasl.password'] = sasl_plain_password
+        
+        self.producer = Producer(config)
         logger.info(f"Kafka producer initialized: {bootstrap_servers}")
+
+    def _delivery_callback(self, err, msg):
+        """Callback for message delivery reports"""
+        if err:
+            logger.error(f'Message delivery failed: {err}')
+        else:
+            logger.debug(
+                f'Message delivered to {msg.topic()} [{msg.partition()}] @ {msg.offset()}'
+            )
 
     def send(
         self,
@@ -60,22 +77,27 @@ class KafkaProducerWrapper:
             if "timestamp" not in value:
                 value["timestamp"] = datetime.utcnow().isoformat()
 
-            # Convert headers to bytes if provided
+            # Serialize value to JSON bytes
+            value_bytes = json.dumps(value).encode('utf-8')
+            key_bytes = key.encode('utf-8') if key else None
+            
+            # Convert headers to list of tuples
             kafka_headers = None
             if headers:
-                kafka_headers = [(k, v.encode("utf-8")) for k, v in headers.items()]
+                kafka_headers = [(k, v.encode('utf-8')) for k, v in headers.items()]
 
             # Send message
-            future = self.producer.send(
-                topic, value=value, key=key, partition=partition, headers=kafka_headers
+            self.producer.produce(
+                topic=topic,
+                value=value_bytes,
+                key=key_bytes,
+                partition=partition if partition is not None else -1,
+                headers=kafka_headers,
+                callback=callback or self._delivery_callback,
             )
-
-            # Add callback if provided
-            if callback:
-                future.add_callback(callback)
-                future.add_errback(lambda e: logger.error(f"Message failed: {e}"))
-
-            return future
+            
+            # Poll to handle delivery callbacks
+            self.producer.poll(0)
 
         except Exception as e:
             logger.error(f"Failed to send message to {topic}: {e}")
@@ -88,21 +110,23 @@ class KafkaProducerWrapper:
         keys: Optional[list[str]] = None,
     ) -> list:
         """Send a batch of messages to a topic"""
-        futures = []
         for i, msg in enumerate(messages):
             key = keys[i] if keys and i < len(keys) else None
-            future = self.send(topic, msg, key=key)
-            futures.append(future)
-
-        return futures
+            self.send(topic, msg, key=key)
+        
+        # Flush to ensure all messages are sent
+        self.flush()
+        return []
 
     def flush(self, timeout: Optional[int] = None):
         """Flush pending messages"""
-        self.producer.flush(timeout=timeout)
+        remaining = self.producer.flush(timeout=timeout or 30)
+        if remaining > 0:
+            logger.warning(f'{remaining} messages were not delivered')
 
     def close(self):
         """Close the producer"""
-        self.producer.close()
+        self.flush()
         logger.info("Kafka producer closed")
 
 
@@ -139,7 +163,6 @@ class MarketDataProducer:
         return self.producer.send(topic=self.topic, value=message, key=symbol)
 
 
-# TODO: Implement Kafka producer wrapper
 # TODO: Add automatic retry logic
 # TODO: Add message delivery confirmation
 # TODO: Add metrics for monitoring

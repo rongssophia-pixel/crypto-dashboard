@@ -15,7 +15,7 @@ grpcio-tools
 protobuf
 
 # Kafka
-kafka-python
+confluent-kafka>=2.3.0
 
 # Development tools
 flake8

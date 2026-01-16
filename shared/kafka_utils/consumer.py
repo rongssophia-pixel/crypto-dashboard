@@ -7,7 +7,7 @@ import json
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
-from kafka import KafkaConsumer
+from confluent_kafka import Consumer, KafkaError, KafkaException
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class KafkaConsumerWrapper:
         group_id: str,
         auto_offset_reset: str = "earliest",
         enable_auto_commit: bool = True,
-        session_timeout_ms: int = 30000,
+        session_timeout_ms: int = 45000,  # Increased for Confluent Cloud
         max_poll_interval_ms: int = 300000,
         heartbeat_interval_ms: int = 3000,
         security_protocol: str = "PLAINTEXT",
@@ -33,38 +33,31 @@ class KafkaConsumerWrapper:
         self.topics = topics
         self.bootstrap_servers = bootstrap_servers
         self.group_id = group_id
-        self.auto_offset_reset = auto_offset_reset
-        self.enable_auto_commit = enable_auto_commit
-        self.session_timeout_ms = session_timeout_ms
-        self.max_poll_interval_ms = max_poll_interval_ms
-        self.heartbeat_interval_ms = heartbeat_interval_ms
-        self.security_protocol = security_protocol
-        self.sasl_mechanism = sasl_mechanism
-        self.sasl_plain_username = sasl_plain_username
-        self.sasl_plain_password = sasl_plain_password
         self._running = False
-        self.consumer: Optional[KafkaConsumer] = None
         
-    def _create_consumer(self):
-        """Create the Kafka consumer instance"""
-        self.consumer = KafkaConsumer(
-            *self.topics,
-            bootstrap_servers=self.bootstrap_servers.split(","),
-            group_id=self.group_id,
-            auto_offset_reset=self.auto_offset_reset,
-            enable_auto_commit=self.enable_auto_commit,
-            value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-            key_deserializer=lambda k: k.decode("utf-8") if k else None,
-            consumer_timeout_ms=1000,  # Allow checking _running flag
-            session_timeout_ms=self.session_timeout_ms,  # Time before Kafka considers consumer dead
-            max_poll_interval_ms=self.max_poll_interval_ms,  # Max time between polls
-            heartbeat_interval_ms=self.heartbeat_interval_ms,  # Heartbeat frequency
-            security_protocol=self.security_protocol,
-            sasl_mechanism=self.sasl_mechanism,
-            sasl_plain_username=self.sasl_plain_username,
-            sasl_plain_password=self.sasl_plain_password,
-        )
-        logger.info(f"Kafka consumer created: {self.group_id} subscribed to {self.topics}")
+        # Build configuration dict for confluent_kafka
+        config = {
+            'bootstrap.servers': bootstrap_servers,
+            'group.id': group_id,
+            'auto.offset.reset': auto_offset_reset,
+            'enable.auto.commit': enable_auto_commit,
+            'session.timeout.ms': session_timeout_ms,
+            'max.poll.interval.ms': max_poll_interval_ms,
+            'heartbeat.interval.ms': heartbeat_interval_ms,
+            # Important for Confluent Cloud stability
+            'socket.keepalive.enable': True,
+        }
+        
+        # Add SASL configuration if needed
+        if security_protocol == "SASL_SSL":
+            config['security.protocol'] = 'SASL_SSL'
+            config['sasl.mechanism'] = sasl_mechanism or 'PLAIN'
+            config['sasl.username'] = sasl_plain_username
+            config['sasl.password'] = sasl_plain_password
+        
+        self.consumer = Consumer(config)
+        self.consumer.subscribe(topics)
+        logger.info(f"Kafka consumer created: {group_id} subscribed to {topics}")
 
     def consume(
         self,
@@ -75,31 +68,36 @@ class KafkaConsumerWrapper:
         Consume messages and process with handler.
         This is a blocking call - run in a thread for async usage.
         """
-        if not self.consumer:
-            self._create_consumer()
-            
         message_count = 0
         self._running = True
 
         try:
             while self._running:
-                # Poll with timeout to allow checking _running flag
-                messages = self.consumer.poll(timeout_ms=1000)
+                msg = self.consumer.poll(timeout=1.0)
                 
-                for tp, records in messages.items():
-                    for message in records:
-                        if not self._running:
-                            break
-                        try:
-                            handler(message.value)
-                            message_count += 1
+                if msg is None:
+                    continue
+                
+                if msg.error():
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
+                        # End of partition, not an error
+                        continue
+                    else:
+                        logger.error(f"Consumer error: {msg.error()}")
+                        raise KafkaException(msg.error())
+                
+                try:
+                    # Deserialize message
+                    value = json.loads(msg.value().decode('utf-8'))
+                    handler(value)
+                    message_count += 1
 
-                            if max_messages and message_count >= max_messages:
-                                self._running = False
-                                break
+                    if max_messages and message_count >= max_messages:
+                        self._running = False
+                        break
 
-                        except Exception as e:
-                            logger.error(f"Error processing message: {e}", exc_info=True)
+                except Exception as e:
+                    logger.error(f"Error processing message: {e}", exc_info=True)
 
         except Exception as e:
             logger.error(f"Consumer error: {e}", exc_info=True)
@@ -110,17 +108,27 @@ class KafkaConsumerWrapper:
         self, batch_size: int = 100, timeout_ms: int = 1000
     ) -> List[Dict[str, Any]]:
         """Consume a batch of messages"""
-        if not self.consumer:
-            self._create_consumer()
-            
         messages = []
 
         try:
-            for message in self.consumer:
-                messages.append(message.value)
-
-                if len(messages) >= batch_size:
+            for _ in range(batch_size):
+                msg = self.consumer.poll(timeout=timeout_ms / 1000.0)
+                
+                if msg is None:
                     break
+                
+                if msg.error():
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
+                        continue
+                    else:
+                        logger.error(f"Consumer error: {msg.error()}")
+                        break
+                
+                try:
+                    value = json.loads(msg.value().decode('utf-8'))
+                    messages.append(value)
+                except Exception as e:
+                    logger.error(f"Error deserializing message: {e}")
 
         except Exception as e:
             logger.error(f"Error consuming batch: {e}")
@@ -129,15 +137,12 @@ class KafkaConsumerWrapper:
 
     def commit(self):
         """Manually commit current offsets"""
-        if self.consumer:
-            self.consumer.commit()
+        self.consumer.commit(asynchronous=False)
 
     def close(self):
         """Close the consumer"""
         self._running = False
-        if self.consumer:
-            self.consumer.close()
-            self.consumer = None
+        self.consumer.close()
         logger.info("Kafka consumer closed")
     
     @property

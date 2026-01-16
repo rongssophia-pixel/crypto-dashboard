@@ -10,7 +10,7 @@ grpcio-tools
 protobuf
 
 # Kafka
-kafka-python
+confluent-kafka>=2.3.0
 
 # ClickHouse
 clickhouse-driver

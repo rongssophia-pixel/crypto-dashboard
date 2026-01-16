@@ -15,7 +15,7 @@ jinja2
 psycopg2-binary
 sqlalchemy
 asyncpg
-aiokafka
+aiokafka>=0.10.0
 
 # Development tools
 flake8

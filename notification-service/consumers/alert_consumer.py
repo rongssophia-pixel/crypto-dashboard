@@ -69,6 +69,11 @@ class AlertConsumer:
             "enable_auto_commit": False,  # Manual commit after processing
             "value_deserializer": lambda m: json.loads(m.decode("utf-8")),
             "security_protocol": self.security_protocol,
+            # Connection settings for Confluent Cloud stability
+            "connections_max_idle_ms": 540000,  # 9 minutes
+            "session_timeout_ms": 45000,  # 45 seconds (increased for cloud)
+            "heartbeat_interval_ms": 3000,  # 3 seconds
+            "request_timeout_ms": 30000,  # 30 seconds
         }
         
         # Add SASL configuration if needed
