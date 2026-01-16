@@ -1,5 +1,6 @@
 """User Repository for PostgreSQL operations"""
 
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -33,6 +34,8 @@ class UserRepository:
         """Create connection pool"""
         if not self.pool:
             try:
+                logger.info(f"Attempting to create PostgreSQL connection pool (users)...")
+                logger.debug(f"DSN: {self.dsn.split('@')[1] if '@' in self.dsn else 'invalid'}")  # Log without password
                 self.pool = await asyncpg.create_pool(
                     self.dsn,
                     min_size=2,
@@ -40,9 +43,12 @@ class UserRepository:
                     timeout=10,  # Connection timeout in seconds
                     command_timeout=10  # Command execution timeout
                 )
-                logger.info("Connected to PostgreSQL (users)")
+                logger.info("✅ Connected to PostgreSQL (users)")
+            except asyncio.TimeoutError:
+                logger.error("❌ Connection timeout to PostgreSQL (users) after 10 seconds")
+                raise
             except Exception as e:
-                logger.error(f"Failed to connect to PostgreSQL: {e}")
+                logger.error(f"❌ Failed to connect to PostgreSQL (users): {type(e).__name__}: {e}")
                 raise
 
     async def disconnect(self):

@@ -82,17 +82,34 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info(f"Starting {settings.service_name}...")
+    logger.info(f"PostgreSQL config: {settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}")
     
-    # Initialize database connections (non-blocking - retry on first request if needed)
+    # Initialize database connections with hard timeout
     logger.info("Initializing database connections...")
     try:
-        await auth.user_repo.connect()
-        await auth.token_repo.connect()
-        logger.info("✅ Database connections initialized")
+        # Add hard 15-second timeout for entire database initialization
+        async def init_databases():
+            logger.info("Connecting to user repository...")
+            await auth.user_repo.connect()
+            logger.info("✅ User repository connected")
+            
+            logger.info("Connecting to token repository...")
+            await auth.token_repo.connect()
+            logger.info("✅ Token repository connected")
+        
+        await asyncio.wait_for(init_databases(), timeout=15.0)
+        logger.info("✅ Database connections initialized successfully")
+    except asyncio.TimeoutError:
+        logger.error("❌ Database connection timeout after 15 seconds")
+        logger.error(f"   Could not connect to PostgreSQL at {settings.postgres_host}:{settings.postgres_port}")
+        logger.error(f"   Database: {settings.postgres_db}, User: {settings.postgres_user}")
+        raise RuntimeError("Database connection timeout - cannot start without database")
     except Exception as e:
-        logger.error(f"⚠️ Failed to initialize database connections: {e}", exc_info=True)
-        logger.warning("⚠️ Database connections will be retried on first request")
-        # Don't raise - allow app to start even if DB is temporarily unavailable
+        logger.error(f"❌ Failed to initialize database connections: {type(e).__name__}: {e}")
+        logger.error(f"   PostgreSQL: {settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}")
+        logger.error(f"   User: {settings.postgres_user}")
+        logger.error("   Check that PostgreSQL service is running and environment variables are correct")
+        raise
     
     # Initialize WebSocket components
     logger.info("Initializing WebSocket components...")

@@ -1,5 +1,6 @@
 """Token Repository for refresh token tracking"""
 
+import asyncio
 import logging
 from datetime import datetime
 from typing import Optional
@@ -32,6 +33,8 @@ class TokenRepository:
         """Create connection pool"""
         if not self.pool:
             try:
+                logger.info(f"Attempting to create PostgreSQL connection pool (tokens)...")
+                logger.debug(f"DSN: {self.dsn.split('@')[1] if '@' in self.dsn else 'invalid'}")  # Log without password
                 self.pool = await asyncpg.create_pool(
                     self.dsn,
                     min_size=2,
@@ -39,9 +42,12 @@ class TokenRepository:
                     timeout=10,  # Connection timeout in seconds
                     command_timeout=10  # Command execution timeout
                 )
-                logger.info("Connected to PostgreSQL (tokens)")
+                logger.info("✅ Connected to PostgreSQL (tokens)")
+            except asyncio.TimeoutError:
+                logger.error("❌ Connection timeout to PostgreSQL (tokens) after 10 seconds")
+                raise
             except Exception as e:
-                logger.error(f"Failed to connect to PostgreSQL: {e}")
+                logger.error(f"❌ Failed to connect to PostgreSQL (tokens): {type(e).__name__}: {e}")
                 raise
 
     async def disconnect(self):
