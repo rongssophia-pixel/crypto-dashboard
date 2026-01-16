@@ -29,7 +29,9 @@ class BinanceConnector:
         self,
         api_key: Optional[str] = None,
         api_secret: Optional[str] = None,
-        # Use the correct WebSocket streaming URL for Binance.US
+        # WebSocket URL - configurable to support different Binance regions
+        # International: wss://stream.binance.com:9443
+        # US: wss://stream.binance.us:9443
         websocket_url: str = "wss://stream.binance.us:9443",
     ):
         """
