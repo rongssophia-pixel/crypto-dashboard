@@ -35,10 +35,12 @@ class KafkaRepository:
             }
 
             # Publish to Kafka with symbol as key for partitioning
-            future = self.producer.send(topic=topic, value=enriched_data, key=symbol)
-
-            # Wait for confirmation
-            future.get(timeout=10)
+            # Note: confluent_kafka Producer.produce() doesn't return a future
+            # It uses callbacks for delivery confirmation
+            self.producer.send(topic=topic, value=enriched_data, key=symbol)
+            
+            # Flush to ensure message is sent (non-blocking with timeout=0)
+            self.producer.flush(timeout=0)
             return True
 
         except Exception as e:
@@ -51,14 +53,15 @@ class KafkaRepository:
 
         for msg in messages:
             try:
-                future = self.producer.send(
+                self.producer.send(
                     topic=topic, value=msg, key=msg.get("symbol")
                 )
-                future.get(timeout=10)
                 success_count += 1
             except Exception as e:
                 logger.error(f"Failed to publish message: {e}")
 
+        # Flush all messages
+        self.producer.flush(timeout=10)
         return success_count
 
     def close(self):
