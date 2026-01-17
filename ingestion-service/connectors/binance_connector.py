@@ -387,7 +387,13 @@ class BinanceConnector:
         while connection_id in self.active_connections:
             try:
                 logger.info(f"🔌 Attempting WebSocket connection to: {url}")
-                async with websockets.connect(url) as websocket:
+                # Binance requires ping/pong frames to keep connection alive
+                async with websockets.connect(
+                    url,
+                    ping_interval=20,  # Send ping every 20 seconds
+                    ping_timeout=20,   # Wait 20 seconds for pong response
+                    close_timeout=10   # Timeout for close handshake
+                ) as websocket:
                     logger.info(f"✅ WebSocket connected successfully: {connection_id}")
                     reconnect_delay = 1  # Reset delay on successful connection
 
