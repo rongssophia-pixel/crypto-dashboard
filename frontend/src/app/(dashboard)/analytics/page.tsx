@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
   // Transform metrics data
   const metricsData = (() => {
     const metrics = metricsResponse?.metrics;
-    if (!metrics || metrics.length === 0) {
+    if (!metrics || !Array.isArray(metrics) || metrics.length === 0) {
       return {
         averagePrice: 0,
         priceVolatility: 0,
