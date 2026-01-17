@@ -47,7 +47,7 @@ class BinanceConnector:
         self.websocket_url = websocket_url
         self.rest_base_url = "https://api.binance.com"
         self.active_connections = {}
-        logger.info("BinanceConnector initialized")
+        logger.info(f"BinanceConnector initialized with websocket_url: {websocket_url}")
 
     async def start_ticker_stream(
         self, symbols: List[str], callback: Callable[[Dict[str, Any]], None]
@@ -386,8 +386,9 @@ class BinanceConnector:
 
         while connection_id in self.active_connections:
             try:
+                logger.info(f"🔌 Attempting WebSocket connection to: {url}")
                 async with websockets.connect(url) as websocket:
-                    logger.info(f"WebSocket connected: {connection_id}")
+                    logger.info(f"✅ WebSocket connected successfully: {connection_id}")
                     reconnect_delay = 1  # Reset delay on successful connection
 
                     async for message in websocket:

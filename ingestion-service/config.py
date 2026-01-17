@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     # Binance API configuration
     binance_api_key: Optional[str] = None
     binance_api_secret: Optional[str] = None
-    binance_websocket_url: str = "wss://stream.binance.com:9443"
+    binance_websocket_url: str = "wss://stream.binance.us:9443"
     
     # JWT configuration
     jwt_secret_key: str
