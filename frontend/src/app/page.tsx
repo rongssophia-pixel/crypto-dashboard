@@ -1,11 +1,18 @@
+'use client';
+
 /**
- * Homepage
- * Redirects to dashboard or login based on auth status
+ * Landing Page
+ * Public homepage with hero section and features
  */
 
-import { redirect } from 'next/navigation';
+import { Hero } from '@/components/landing/hero';
+import { Features } from '@/components/landing/features';
 
 export default function HomePage() {
-  // Redirect to dashboard - middleware will handle auth check
-  redirect('/dashboard');
+  return (
+    <main className="min-h-screen">
+      <Hero />
+      <Features />
+    </main>
+  );
 }

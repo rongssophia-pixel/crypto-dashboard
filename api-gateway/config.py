@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     service_port: int = int(os.getenv("PORT", "8000"))
     
     # Service endpoints
+    # Local development: localhost
+    # Railway deployment: Set these to your Railway service names
+    # e.g., INGESTION_SERVICE_HOST=ingestion-service
     ingestion_service_host: str = "localhost"
     ingestion_service_port: int = 50051
     analytics_service_host: str = "localhost"
