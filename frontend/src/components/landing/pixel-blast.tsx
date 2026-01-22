@@ -448,7 +448,7 @@ const PixelBlast = ({
         if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
           const u32 = new Uint32Array(1);
           window.crypto.getRandomValues(u32);
-          return u32[0] / 0xffffffff;
+          return u32[0]! / 0xffffffff;
         }
         return Math.random();
       };
@@ -507,7 +507,7 @@ const PixelBlast = ({
       const onPointerDown = (e: any) => {
         const { fx, fy } = mapToPixels(e);
         const ix = threeRef.current?.clickIx ?? 0;
-        uniforms.uClickPos.value[ix].set(fx, fy);
+        uniforms.uClickPos.value[ix]!.set(fx, fy);
         uniforms.uClickTimes.value[ix] = uniforms.uTime.value;
         if (threeRef.current) threeRef.current.clickIx = (ix + 1) % MAX_CLICKS;
       };

@@ -6,7 +6,7 @@
  */
 
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BarChart3 } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import PixelBlast from './pixel-blast';
@@ -26,9 +26,6 @@ export function Hero() {
             <span className="text-lg font-bold text-white tracking-tight">CryptoDash</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
-            <Link href="#features" className="hover:text-white transition-colors">Features</Link>
-            <Link href="#pricing" className="hover:text-white transition-colors">Pricing</Link>
-            <Link href="#about" className="hover:text-white transition-colors">About</Link>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/login" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
@@ -45,7 +42,7 @@ export function Hero() {
       <PixelBlast
         variant="square"
         pixelSize={6}
-        color="#6366f1" 
+        color="#c084fc" 
         patternScale={3}
         patternDensity={1.5}
         pixelSizeJitter={0.2}
@@ -54,7 +51,7 @@ export function Hero() {
         rippleThickness={0.05}
         rippleIntensityScale={2}
         liquid={false}
-        speed={0.4}
+        speed={0.6}
         edgeFade={0.2}
         transparent
         className="absolute inset-0 z-0 opacity-80"
@@ -68,15 +65,6 @@ export function Hero() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 pt-20">
         <div className="max-w-5xl mx-auto text-center space-y-10">
           
-          {/* Announcement Pill */}
-          <div className="flex justify-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-zinc-300 hover:bg-white/10 transition-colors cursor-pointer">
-              <span className="flex h-2 w-2 rounded-full bg-primary"></span>
-              v2.0 is now live
-              <ArrowRight className="h-3 w-3 text-zinc-500" />
-            </div>
-          </div>
-
           {/* Title */}
           <h1 className="text-5xl sm:text-7xl lg:text-8xl font-semibold tracking-tighter text-white">
             Analytics for the
