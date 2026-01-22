@@ -42,7 +42,7 @@ export function Hero() {
       <PixelBlast
         variant="square"
         pixelSize={6}
-        color="#c084fc" 
+        color="#7c3aed" 
         patternScale={3}
         patternDensity={1.5}
         pixelSizeJitter={0.2}
