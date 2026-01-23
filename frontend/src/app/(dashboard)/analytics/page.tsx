@@ -5,7 +5,8 @@
  * Symbol Details and Market Data analysis
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { SymbolSelector } from '@/components/analytics/symbol-selector';
 import { PriceTicker } from '@/components/price/price-ticker';
 import { InteractiveChart } from '@/components/price/interactive-chart';
@@ -13,28 +14,49 @@ import { PriceStats } from '@/components/price/price-stats';
 import { MarketDataTable } from '@/components/analytics/market-data-table';
 import { Separator } from '@/components/ui/separator';
 import { useTicker } from '@/hooks/api/usePriceData';
-import { useMarketDataQuery } from '@/hooks/api/useAnalytics';
 import { useWatchlist } from '@/hooks/api/useWatchlist';
+import { useMarketDataQuery } from '@/hooks/api/useAnalytics';
+import { useRealtimePrice } from '@/hooks/useRealtimePrice';
 import { toUTCIso } from '@/lib/time';
 import { subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 
-export default function AnalyticsPage() {
+function AnalyticsContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlSymbol = searchParams.get('symbol');
+  const initializedRef = useRef(false);
+  
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
 
   // Fetch watchlist
   const { data: watchlistData, isLoading: isWatchlistLoading } = useWatchlist();
   const watchlistSymbols = watchlistData?.symbols || [];
 
-  // Set initial symbol from watchlist
+  // Set initial symbol from URL or watchlist (only once)
   useEffect(() => {
-    const firstSymbol = watchlistSymbols[0];
-    if (firstSymbol && !selectedSymbol) {
-      setSelectedSymbol(firstSymbol);
+    if (initializedRef.current) return;
+    
+    if (urlSymbol) {
+      setSelectedSymbol(urlSymbol.toUpperCase());
+      initializedRef.current = true;
+    } else if (watchlistSymbols[0]) {
+      setSelectedSymbol(watchlistSymbols[0]);
+      initializedRef.current = true;
     }
-  }, [watchlistSymbols, selectedSymbol]);
+  }, [urlSymbol, watchlistSymbols]);
+
+  // Handle symbol change - update URL to keep it in sync
+  const handleSymbolChange = useCallback((newSymbol: string) => {
+    setSelectedSymbol(newSymbol);
+    // Update URL without full navigation
+    router.replace(`/analytics?symbol=${newSymbol}`, { scroll: false });
+  }, [router]);
+
+  // Real-time updates
+  const { isConnected } = useRealtimePrice(selectedSymbol);
 
   // Fetch ticker data for selected symbol
   const { data: tickerData, isLoading: isTickerLoading } = useTicker(selectedSymbol);
@@ -96,7 +118,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header with Symbol Selector */}
+      {/* Header with Symbol Selector and Actions */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
@@ -104,11 +126,13 @@ export default function AnalyticsPage() {
             Analyze market trends and price movements
           </p>
         </div>
-        <SymbolSelector 
-          value={selectedSymbol} 
-          onChange={setSelectedSymbol} 
-          symbols={watchlistSymbols}
-        />
+        <div className="flex items-center gap-3">
+          <SymbolSelector 
+            value={selectedSymbol} 
+            onChange={handleSymbolChange} 
+            symbols={watchlistSymbols}
+          />
+        </div>
       </div>
 
       <Separator />
@@ -117,17 +141,16 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Chart & Ticker */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">{selectedSymbol}</h2>
-          </div>
-          
           <PriceTicker 
             symbol={selectedSymbol} 
             data={tickerData} 
             isLoading={isTickerLoading} 
+            isConnected={isConnected}
           />
           
-          <div className="h-[500px] border rounded-lg p-4 bg-card">
+          <Separator />
+          
+          <div className="h-[500px]">
             <InteractiveChart symbol={selectedSymbol} />
           </div>
         </div>
@@ -143,8 +166,7 @@ export default function AnalyticsPage() {
           <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
             <h4 className="font-medium mb-2 text-sm">About {selectedSymbol}</h4>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Real-time market data and analytics for {selectedSymbol}. 
-              Track price movements, volume, and volatility.
+              {selectedSymbol} is a decentralized digital currency. It is one of the cryptocurrencies tracked by our platform.
             </p>
           </div>
         </div>
@@ -152,14 +174,37 @@ export default function AnalyticsPage() {
 
       <Separator />
 
-      {/* Bottom Section: Market Data Table */}
+      {/* Bottom Section: Real-time Market Data Table */}
       <div id="market-data" className="space-y-4 pt-4">
-        <h3 className="text-xl font-semibold">Recent Market Data</h3>
+        <h3 className="text-xl font-semibold">Real-time Market Data</h3>
+        <p className="text-sm text-muted-foreground">
+          Recent price updates for {selectedSymbol} in the last 24 hours
+        </p>
         <MarketDataTable 
           data={tableData}
           isLoading={marketDataLoading}
         />
       </div>
     </div>
+  );
+}
+
+export default function AnalyticsPage() {
+  return (
+    <Suspense fallback={
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+          <p className="text-muted-foreground">
+            Analyze market trends and price movements
+          </p>
+        </div>
+        <div className="h-[400px] flex items-center justify-center">
+          <div className="animate-pulse text-muted-foreground">Loading...</div>
+        </div>
+      </div>
+    }>
+      <AnalyticsContent />
+    </Suspense>
   );
 }

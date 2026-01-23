@@ -100,7 +100,7 @@ export function WatchlistCard({ symbol, onClick, isSelected }: WatchlistCardProp
     }
 
     return (
-      <Link href={`/price/${symbol}`}>
+      <Link href={`/analytics?symbol=${symbol}`}>
         {card}
       </Link>
     );

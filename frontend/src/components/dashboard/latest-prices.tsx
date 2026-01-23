@@ -5,6 +5,7 @@
  * Displays real-time prices for tracked symbols
  */
 
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -34,6 +35,12 @@ interface LatestPricesProps {
 }
 
 export function LatestPrices({ data = [], isLoading = false, error }: LatestPricesProps) {
+  const router = useRouter();
+
+  const handleRowClick = (symbol: string) => {
+    router.push(`/analytics?symbol=${symbol}`);
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -107,7 +114,11 @@ export function LatestPrices({ data = [], isLoading = false, error }: LatestPric
             {data.map((item) => {
               const isPositive = (item.change_24h || 0) >= 0;
               return (
-                <TableRow key={item.symbol} className="cursor-pointer hover:bg-muted/50">
+                <TableRow 
+                  key={item.symbol} 
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => handleRowClick(item.symbol)}
+                >
                   <TableCell className="font-medium">{item.symbol}</TableCell>
                   <TableCell className="text-right font-mono">
                     ${item.price.toFixed(2)}
@@ -146,5 +157,6 @@ export function LatestPrices({ data = [], isLoading = false, error }: LatestPric
     </Card>
   );
 }
+
 
 
