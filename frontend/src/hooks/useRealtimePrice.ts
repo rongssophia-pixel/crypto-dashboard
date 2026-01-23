@@ -1,24 +1,15 @@
 import { useEffect, useState, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/lib/api-client';
 import { TickerData } from './api/usePriceData';
-
-// WebSocket message types
-interface WSMessage {
-  type: string;
-  symbol?: string;
-  price?: number;
-  volume?: number;
-  // Add other fields as needed
-}
 
 export function useRealtimePrice(symbol: string) {
   const queryClient = useQueryClient();
-  const { token } = useAuth();
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    const { accessToken: token } = apiClient.getTokens();
     if (!symbol || !token) return;
 
     // Connect to WebSocket
@@ -81,7 +72,7 @@ export function useRealtimePrice(symbol: string) {
         ws.close();
       }
     };
-  }, [symbol, token, queryClient]);
+  }, [symbol, queryClient]);
 
   return { isConnected };
 }

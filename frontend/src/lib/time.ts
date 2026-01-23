@@ -3,7 +3,7 @@
  * Handles conversion between UTC and user's local timezone
  */
 
-import { formatDistanceToNow, parseISO, subDays, subHours, subMonths, subYears, startOfDay, startOfYear } from 'date-fns';
+import { formatDistanceToNow, parseISO, subDays, subMonths, subYears, startOfYear } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 
 /**

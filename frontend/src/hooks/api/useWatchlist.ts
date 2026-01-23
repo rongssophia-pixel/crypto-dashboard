@@ -72,11 +72,10 @@ export function useRemoveFromWatchlist() {
 export function useReorderWatchlist() {
   const queryClient = useQueryClient();
 
-  return useMutation<void, Error, string[]>({
-    mutationFn: async (newOrder) => {
+  return useMutation<void, Error, string[], { previousWatchlist?: WatchlistResponse }>({
+    mutationFn: async () => {
       // For now, this is a client-side only operation
       // In the future, you could add an API endpoint to persist the order
-      // e.g., return apiClient.put('/api/v1/watchlist/order', { symbols: newOrder });
       return Promise.resolve();
     },
     onMutate: async (newOrder) => {

@@ -8,7 +8,6 @@ import {
   ResponsiveContainer,
   ComposedChart,
   BarChart,
-  Line,
   Bar,
   XAxis,
   YAxis,
@@ -18,8 +17,8 @@ import {
   Area,
 } from 'recharts';
 import { formatDateTime, TimeRangePreset } from '@/lib/time';
-import { CandleData, usePriceCandles } from '@/hooks/api/usePriceData';
-import { Maximize2, Settings, Share2, PlusCircle } from 'lucide-react';
+import { usePriceCandles } from '@/hooks/api/usePriceData';
+import { Maximize2, Share2 } from 'lucide-react';
 
 interface InteractiveChartProps {
   symbol: string;
@@ -59,7 +58,7 @@ export function InteractiveChart({ symbol, range: controlledRange, onRangeChange
     range: [item.low, item.high],
   }));
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const d = payload[0].payload;
       return (
