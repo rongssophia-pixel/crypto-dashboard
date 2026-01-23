@@ -30,8 +30,9 @@ export default function AnalyticsPage() {
 
   // Set initial symbol from watchlist
   useEffect(() => {
-    if (watchlistSymbols.length > 0 && !selectedSymbol) {
-      setSelectedSymbol(watchlistSymbols[0]);
+    const firstSymbol = watchlistSymbols[0];
+    if (firstSymbol && !selectedSymbol) {
+      setSelectedSymbol(firstSymbol);
     }
   }, [watchlistSymbols, selectedSymbol]);
 
