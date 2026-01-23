@@ -15,7 +15,7 @@ import logging
 import time
 from contextlib import asynccontextmanager
 
-from api import analytics, auth, ingestion, storage, websocket
+from api import analytics, auth, ingestion, storage, websocket, watchlist
 from config import settings
 from services.websocket_manager import ConnectionManager
 from services.kafka_consumer_service import WebSocketKafkaConsumer
@@ -96,6 +96,10 @@ async def lifespan(app: FastAPI):
             logger.info("Connecting to token repository...")
             await auth.token_repo.connect()
             logger.info("✅ Token repository connected")
+            
+            logger.info("Connecting to watchlist repository...")
+            await watchlist.watchlist_repo.connect()
+            logger.info("✅ Watchlist repository connected")
         
         await asyncio.wait_for(init_databases(), timeout=15.0)
         logger.info("✅ Database connections initialized successfully")
@@ -154,6 +158,7 @@ async def lifespan(app: FastAPI):
     try:
         await auth.user_repo.disconnect()
         await auth.token_repo.disconnect()
+        await watchlist.watchlist_repo.disconnect()
         logger.info("✅ Database connections closed")
     except Exception as e:
         logger.error(f"Error closing database connections: {e}")
@@ -239,6 +244,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(ingestion.router, prefix="/api/v1/ingestion", tags=["Ingestion"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
 app.include_router(storage.router, prefix="/api/v1/storage", tags=["Storage"])
+app.include_router(watchlist.router, prefix="/api/v1/watchlist", tags=["Watchlist"])
 app.include_router(websocket.router, tags=["WebSocket"])
 # app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["Notifications"])
 

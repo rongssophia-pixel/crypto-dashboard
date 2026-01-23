@@ -9,11 +9,10 @@ import { usePathname } from 'next/navigation';
 import { 
   Home, 
   BarChart3, 
-  Activity, 
-  Settings, 
   User,
   LogOut,
-  TrendingUp
+  TrendingUp,
+  Archive
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,8 +21,7 @@ import { cn } from '@/lib/utils';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Real-time', href: '/realtime', icon: Activity },
-  { name: 'Admin', href: '/admin', icon: Settings },
+  { name: 'Archives', href: '/archives', icon: Archive },
   { name: 'Profile', href: '/profile', icon: User },
 ];
 

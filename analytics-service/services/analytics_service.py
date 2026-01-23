@@ -333,6 +333,69 @@ class AnalyticsBusinessService:
             logger.error(f"Error in get_latest_prices: {e}", exc_info=True)
             raise
     
+    async def get_ticker_data(
+        self,
+        symbol: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get latest ticker data (price + 24h stats)
+        
+        Args:
+            symbol: Trading symbol
+            
+        Returns:
+            Ticker data or None
+        """
+        # Reuse get_latest_price as it now includes stats
+        return await self.get_latest_price(symbol)
+
+    async def get_candles_by_interval(
+        self,
+        symbol: str,
+        interval: str,
+        limit: int = 100
+    ) -> Dict[str, Any]:
+        """
+        Get latest candles by interval
+        
+        Args:
+            symbol: Trading symbol
+            interval: Candle interval
+            limit: Number of candles
+            
+        Returns:
+            Dictionary with candles
+        """
+        # Calculate start time based on interval and limit
+        # This is an approximation to ensure we cover enough time
+        # We'll rely on the limit in the query to get exact count
+        
+        now = datetime.now()
+        
+        # Map interval to minutes
+        minutes_map = {
+            "1m": 1,
+            "5m": 5,
+            "15m": 15,
+            "30m": 30,
+            "1h": 60,
+            "4h": 240,
+            "1d": 1440,
+        }
+        
+        minutes = minutes_map.get(interval, 60)
+        # Look back limit * interval * 2 to be safe (handling gaps)
+        lookback = timedelta(minutes=minutes * limit * 2)
+        start_time = now - lookback
+        
+        return await self.get_candles(
+            symbol=symbol,
+            interval=interval,
+            start_time=start_time,
+            end_time=now,
+            limit=limit
+        )
+
     async def get_price_alerts_data(
         self,
         symbol: str,

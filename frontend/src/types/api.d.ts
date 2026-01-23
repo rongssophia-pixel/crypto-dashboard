@@ -12,3 +12,5 @@
 // Placeholder types - will be replaced by generated types
 export interface paths {}
 export interface components {}
+
+

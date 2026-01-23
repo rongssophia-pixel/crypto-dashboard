@@ -268,7 +268,6 @@ class BinanceConnector:
         Returns:
             Exchange info dictionary
         """
-        # TODO: Implement exchange info fetch
         endpoint = f"{self.rest_base_url}/api/v3/exchangeInfo"
 
         params = {}
@@ -284,6 +283,44 @@ class BinanceConnector:
                 else:
                     logger.error(f"Failed to fetch exchange info: {response.status}")
                     return {}
+
+    async def get_all_trading_symbols(
+        self, quote_currency: str = "USDT"
+    ) -> List[str]:
+        """
+        Fetch all trading symbols from exchange and filter by quote currency
+
+        Args:
+            quote_currency: Filter by quote currency (default: USDT)
+
+        Returns:
+            List of trading symbols (e.g., ['BTCUSDT', 'ETHUSDT', ...])
+        """
+        logger.info(f"Fetching all trading symbols with quote currency: {quote_currency}")
+        
+        try:
+            exchange_info = await self.get_exchange_info()
+            
+            if not exchange_info or "symbols" not in exchange_info:
+                logger.error("No symbols found in exchange info")
+                return []
+            
+            # Filter symbols by quote currency and trading status
+            symbols = []
+            for symbol_info in exchange_info["symbols"]:
+                # Check if symbol is trading and matches quote currency
+                if (
+                    symbol_info.get("status") == "TRADING"
+                    and symbol_info.get("quoteAsset") == quote_currency
+                ):
+                    symbols.append(symbol_info["symbol"])
+            
+            logger.info(f"Found {len(symbols)} {quote_currency} trading pairs")
+            return sorted(symbols)
+            
+        except Exception as e:
+            logger.error(f"Error fetching trading symbols: {e}", exc_info=True)
+            return []
 
     def _normalize_ticker_data(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -418,6 +455,10 @@ class BinanceConnector:
                                 normalized = self._normalize_trade_data(data)
                             elif stream_type == "kline":
                                 normalized = self._normalize_kline_data(data)
+                            elif stream_type == "combined":
+                                # For combined streams, pass raw data to callback
+                                # Callback will route based on stream name
+                                normalized = data
                             else:
                                 normalized = data
 
@@ -443,6 +484,156 @@ class BinanceConnector:
                 )
                 await asyncio.sleep(reconnect_delay)
                 reconnect_delay = min(reconnect_delay * 2, max_reconnect_delay)
+
+    async def start_all_streams(
+        self,
+        symbols: List[str],
+        intervals: List[str],
+        kline_callback: Callable[[Dict[str, Any]], None],
+        ticker_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+        max_symbols_per_connection: int = 50,
+    ) -> List[str]:
+        """
+        Start kline and ticker streams for all symbols with connection pooling
+
+        Args:
+            symbols: List of trading symbols
+            intervals: List of kline intervals (e.g., ['1m', '5m', '1h'])
+            kline_callback: Callback for kline data
+            ticker_callback: Optional callback for ticker data
+            max_symbols_per_connection: Max symbols per WebSocket connection
+
+        Returns:
+            List of connection IDs
+        """
+        logger.info(
+            f"Starting streams for {len(symbols)} symbols, "
+            f"{len(intervals)} intervals, ticker={'enabled' if ticker_callback else 'disabled'}"
+        )
+
+        connection_ids = []
+        
+        # Calculate streams per symbol
+        streams_per_symbol = len(intervals) + (1 if ticker_callback else 0)
+        logger.info(f"Streams per symbol: {streams_per_symbol}")
+        
+        # Split symbols into batches to avoid hitting 1024 stream limit
+        symbols_per_batch = max_symbols_per_connection
+        batches = [
+            symbols[i : i + symbols_per_batch]
+            for i in range(0, len(symbols), symbols_per_batch)
+        ]
+        
+        logger.info(
+            f"Creating {len(batches)} WebSocket connections "
+            f"({symbols_per_batch} symbols per connection)"
+        )
+
+        # Create a connection for each batch
+        for batch_idx, symbol_batch in enumerate(batches):
+            try:
+                connection_id = await self._start_combined_stream(
+                    symbols=symbol_batch,
+                    intervals=intervals,
+                    kline_callback=kline_callback,
+                    ticker_callback=ticker_callback,
+                    connection_name=f"batch-{batch_idx}",
+                )
+                connection_ids.append(connection_id)
+                logger.info(
+                    f"✅ Started connection {batch_idx + 1}/{len(batches)}: "
+                    f"{len(symbol_batch)} symbols, {len(symbol_batch) * streams_per_symbol} streams"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to start connection for batch {batch_idx}: {e}",
+                    exc_info=True,
+                )
+
+        logger.info(
+            f"✅ All streams started: {len(connection_ids)} connections, "
+            f"{len(symbols)} symbols, ~{len(symbols) * streams_per_symbol} total streams"
+        )
+        return connection_ids
+
+    async def _start_combined_stream(
+        self,
+        symbols: List[str],
+        intervals: List[str],
+        kline_callback: Callable[[Dict[str, Any]], None],
+        ticker_callback: Optional[Callable[[Dict[str, Any]], None]],
+        connection_name: str,
+    ) -> str:
+        """
+        Start a combined WebSocket stream with multiple symbols and stream types
+
+        Args:
+            symbols: List of symbols for this connection
+            intervals: Kline intervals
+            kline_callback: Callback for kline data
+            ticker_callback: Callback for ticker data
+            connection_name: Name for this connection
+
+        Returns:
+            Connection ID
+        """
+        connection_id = f"{connection_name}-{uuid.uuid4()}"
+        
+        # Build stream list
+        streams = []
+        
+        # Add kline streams for each symbol and interval
+        for symbol in symbols:
+            symbol_lower = symbol.lower()
+            for interval in intervals:
+                streams.append(f"{symbol_lower}@kline_{interval}")
+        
+        # Add ticker streams if enabled
+        if ticker_callback:
+            for symbol in symbols:
+                symbol_lower = symbol.lower()
+                streams.append(f"{symbol_lower}@ticker")
+        
+        # Build combined stream URL
+        stream_names = "/".join(streams)
+        url = f"{self.websocket_url}/stream?streams={stream_names}"
+        
+        # Check URL length to avoid HTTP 414 errors
+        url_length = len(url)
+        logger.info(
+            f"Starting combined stream: {connection_name} with {len(streams)} streams "
+            f"(URL length: {url_length} chars)"
+        )
+        
+        if url_length > 8000:
+            logger.warning(
+                f"⚠️  URL length ({url_length}) is very long and may cause HTTP 414 errors. "
+                f"Consider reducing max_symbols_per_connection (current: {len(symbols)} symbols)"
+            )
+        
+        # Create callback router to dispatch to correct handler
+        async def combined_callback(data):
+            stream = data.get("stream", "")
+            if "@kline_" in stream:
+                if asyncio.iscoroutinefunction(kline_callback):
+                    await kline_callback(data)
+                else:
+                    kline_callback(data)
+            elif "@ticker" in stream and ticker_callback:
+                if asyncio.iscoroutinefunction(ticker_callback):
+                    await ticker_callback(data)
+                else:
+                    ticker_callback(data)
+        
+        # Start WebSocket handler
+        task = asyncio.create_task(
+            self._websocket_handler(
+                url, combined_callback, connection_id, "combined"
+            )
+        )
+        self.active_connections[connection_id] = task
+        
+        return connection_id
 
     async def close(self):
         """

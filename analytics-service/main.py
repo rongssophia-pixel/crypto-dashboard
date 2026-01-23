@@ -360,6 +360,61 @@ async def get_aggregated_metrics(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@app.get("/api/v1/ticker/{symbol}")
+async def get_ticker(
+    symbol: str,
+    tenant_id: str = Query("", description="Tenant identifier")
+):
+    """
+    Get latest ticker data with 24h stats
+    """
+    try:
+        service = get_analytics_service()
+        with REQUEST_LATENCY.labels(method="get_ticker").time():
+            result = await service.get_ticker_data(symbol)
+        
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Ticker not found for {symbol}")
+            
+        REQUEST_COUNT.labels(method="get_ticker", status="success").inc()
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        REQUEST_COUNT.labels(method="get_ticker", status="error").inc()
+        logger.error(f"Error in get_ticker: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/api/v1/candles/{symbol}")
+async def get_candles_simple(
+    symbol: str,
+    interval: str = Query("1h", description="Candle interval"),
+    limit: int = Query(100, description="Number of candles"),
+    tenant_id: str = Query("", description="Tenant identifier")
+):
+    """
+    Get candles by interval (simplified endpoint)
+    """
+    try:
+        service = get_analytics_service()
+        with REQUEST_LATENCY.labels(method="get_candles_simple").time():
+            result = await service.get_candles_by_interval(
+                symbol=symbol,
+                interval=interval,
+                limit=limit
+            )
+        REQUEST_COUNT.labels(method="get_candles_simple", status="success").inc()
+        return result
+    except ValueError as e:
+        REQUEST_COUNT.labels(method="get_candles_simple", status="error").inc()
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        REQUEST_COUNT.labels(method="get_candles_simple", status="error").inc()
+        logger.error(f"Error in get_candles_simple: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @app.post("/api/v1/market-data/query")
 async def query_market_data(
     symbols: List[str] = Query(..., description="List of trading symbols"),

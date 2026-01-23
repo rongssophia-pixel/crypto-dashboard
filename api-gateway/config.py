@@ -22,8 +22,10 @@ class Settings(BaseSettings):
     # e.g., INGESTION_SERVICE_HOST=ingestion-service
     ingestion_service_host: str = "localhost"
     ingestion_service_port: int = 50051
+    ingestion_service_http_port: int = 8001
     analytics_service_host: str = "localhost"
     analytics_service_port: int = 50052
+    analytics_service_http_port: int = 8002
     storage_service_host: str = "localhost"
     storage_service_port: int = 50053
     notification_service_host: str = "localhost"

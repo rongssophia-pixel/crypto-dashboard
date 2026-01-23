@@ -132,3 +132,5 @@ export function UserInfo({ user, isLoading = false }: UserInfoProps) {
     </Card>
   );
 }
+
+

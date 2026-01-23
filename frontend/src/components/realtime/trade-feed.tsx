@@ -111,3 +111,5 @@ export function TradeFeed({ trades, maxTrades = 100 }: TradeFeedProps) {
     </Card>
   );
 }
+
+

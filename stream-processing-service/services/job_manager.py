@@ -148,13 +148,30 @@ class JobManager:
     async def _process_message(self, data: Dict[str, Any]):
         """
         Process a message asynchronously (runs on main event loop).
+        Routes data based on type:
+        - kline: passthrough to market_candles (no aggregation)
+        - ticker: passthrough to market_data (no aggregation)
+        - other: aggregate via candle job (backward compatibility)
         """
         try:
-            # Process through enrichment job
-            enriched = await self.enrichment_job.process(data)
+            data_type = data.get("type")
             
-            # Process through candle aggregation
-            await self.candle_job.process(enriched)
+            if data_type == "kline":
+                # Kline data already has OHLCV - pass through directly
+                logger.debug(f"Processing kline data: {data.get('symbol')} {data.get('interval')}")
+                await self._on_candle_complete(data)
+                
+            elif data_type == "ticker":
+                # Ticker data has 24h stats - pass through directly
+                logger.debug(f"Processing ticker data: {data.get('symbol')}")
+                enriched = await self.enrichment_job.process(data)
+                await self._on_enriched_data(enriched)
+                
+            else:
+                # Legacy path: trade/tick data that needs aggregation
+                logger.debug(f"Processing legacy data type: {data_type}")
+                enriched = await self.enrichment_job.process(data)
+                await self.candle_job.process(enriched)
             
         except Exception as e:
             logger.error(f"Error processing message: {e}", exc_info=True)

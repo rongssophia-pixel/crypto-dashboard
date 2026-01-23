@@ -1,286 +1,315 @@
 """
 Ingestion Business Service
-Core business logic for data ingestion
+Core business logic for automatic data ingestion
 """
 
+import asyncio
 import logging
-import time
-import uuid
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class IngestionBusinessService:
-    """Business logic for ingestion operations"""
+    """Business logic for automatic ingestion operations"""
 
-    def __init__(self, stream_repository, kafka_repository, binance_connector):
-        self.stream_repository = stream_repository
+    def __init__(self, kafka_repository, binance_connector):
+        """
+        Initialize ingestion service
+
+        Args:
+            kafka_repository: Repository for publishing to Kafka
+            binance_connector: Binance WebSocket connector
+        """
         self.kafka_repository = kafka_repository
         self.binance_connector = binance_connector
-        self.active_streams = {}  # stream_id -> {symbols, task}
+        self.active_connections: List[str] = []  # List of WebSocket connection IDs
+        self.symbol_list: List[str] = []
+        self.refresh_task: Optional[asyncio.Task] = None
         logger.info("IngestionBusinessService initialized")
 
-    async def start_stream(
+    async def start_auto_ingestion(
         self,
-        symbols: List[str],
-        exchange: str,
-        stream_type: str,
+        intervals: List[str],
+        quote_currency: str,
+        enable_ticker: bool,
+        max_symbols_per_connection: int,
         kafka_topic: str,
     ) -> Dict[str, Any]:
-        """Start streaming market data for given symbols"""
-        try:
-            # Generate unique stream ID
-            stream_id = str(uuid.uuid4())
+        """
+        Start automatic ingestion for all trading pairs
 
-            # Create stream session in database
-            await self.stream_repository.create_stream(
-                stream_id=stream_id,
-                symbols=symbols,
-                exchange=exchange,
-                stream_type=stream_type,
+        Args:
+            intervals: List of kline intervals to subscribe to
+            quote_currency: Filter symbols by quote currency
+            enable_ticker: Whether to enable ticker streams
+            max_symbols_per_connection: Max symbols per WebSocket connection
+            kafka_topic: Kafka topic to publish to
+
+        Returns:
+            Status information
+        """
+        try:
+            logger.info("=" * 60)
+            logger.info("🚀 Starting automatic ingestion...")
+            logger.info("=" * 60)
+
+            # 1. Fetch all trading symbols
+            logger.info(f"Fetching all {quote_currency} trading pairs...")
+            symbols = await self.binance_connector.get_all_trading_symbols(
+                quote_currency=quote_currency
             )
 
-            # Create callback for market data
-            async def data_callback(data):
-                await self._handle_market_data(
-                    data=data,
-                    stream_id=stream_id,
-                    kafka_topic=kafka_topic,
-                )
+            if not symbols:
+                logger.error("No trading symbols found. Cannot start ingestion.")
+                return {
+                    "success": False,
+                    "error": "No trading symbols found",
+                }
 
-            # Start connector websocket based on stream type
-            if stream_type == "ticker":
-                connector_stream_id = await self.binance_connector.start_ticker_stream(
-                    symbols, data_callback
-                )
-            elif stream_type == "trade":
-                connector_stream_id = await self.binance_connector.start_trade_stream(
-                    symbols, data_callback
-                )
-            elif stream_type == "kline":
-                # Default to 1m interval
-                connector_stream_id = await self.binance_connector.start_kline_stream(
-                    symbols, "1m", data_callback
-                )
-            else:
-                raise ValueError(f"Unknown stream type: {stream_type}")
+            self.symbol_list = symbols
+            logger.info(f"✅ Found {len(symbols)} trading pairs")
 
-            # Track active stream
-            self.active_streams[stream_id] = {
-                "symbols": symbols,
-                "exchange": exchange,
-                "stream_type": stream_type,
-                "connector_stream_id": connector_stream_id,
-                "started_at": datetime.utcnow(),
-            }
+            # 2. Create callbacks for data handling
+            async def handle_kline_data(data):
+                await self._handle_market_data(data, "kline", kafka_topic)
 
-            # Update Prometheus metrics
-            try:
-                from main import ACTIVE_STREAMS
-                ACTIVE_STREAMS.labels(
-                    exchange=exchange,
-                    stream_type=stream_type
-                ).inc()
-            except ImportError:
-                pass  # Metrics not available in test environment
+            async def handle_ticker_data(data):
+                await self._handle_market_data(data, "ticker", kafka_topic)
 
-            logger.info(f"Started stream {stream_id}")
+            # 3. Start all streams with connection pooling
+            logger.info(
+                f"Starting streams: {len(intervals)} kline intervals, "
+                f"ticker={'enabled' if enable_ticker else 'disabled'}"
+            )
+
+            connection_ids = await self.binance_connector.start_all_streams(
+                symbols=symbols,
+                intervals=intervals,
+                kline_callback=handle_kline_data,
+                ticker_callback=handle_ticker_data if enable_ticker else None,
+                max_symbols_per_connection=max_symbols_per_connection,
+            )
+
+            self.active_connections = connection_ids
+
+            logger.info("=" * 60)
+            logger.info("✅ Automatic ingestion started successfully!")
+            logger.info(f"   - Symbols: {len(symbols)}")
+            logger.info(f"   - Intervals: {', '.join(intervals)}")
+            logger.info(f"   - Ticker streams: {'enabled' if enable_ticker else 'disabled'}")
+            logger.info(f"   - WebSocket connections: {len(connection_ids)}")
+            logger.info("=" * 60)
 
             return {
-                "stream_id": stream_id,
-                "status": "active",
-                "symbols": symbols,
-                "exchange": exchange,
-                "stream_type": stream_type,
+                "success": True,
+                "symbols_count": len(symbols),
+                "intervals": intervals,
+                "ticker_enabled": enable_ticker,
+                "connections": len(connection_ids),
                 "started_at": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
-            logger.error(f"Failed to start stream: {e}", exc_info=True)
-            raise
-
-    async def stop_stream(self, stream_id: str) -> bool:
-        """Stop an active data stream"""
-        try:
-            # Verify stream exists
-            if stream_id not in self.active_streams:
-                logger.warning(f"Stream not found: {stream_id}")
-                return False
-
-            stream_info = self.active_streams[stream_id]
-
-            # Stop connector websocket
-            connector_stream_id = stream_info["connector_stream_id"]
-            await self.binance_connector.stop_stream(connector_stream_id)
-
-            # Update database
-            await self.stream_repository.stop_stream(stream_id)
-
-            # Remove from active streams
-            del self.active_streams[stream_id]
-
-            # Update Prometheus metrics
-            try:
-                from main import ACTIVE_STREAMS
-                ACTIVE_STREAMS.labels(
-                    exchange=stream_info["exchange"],
-                    stream_type=stream_info["stream_type"]
-                ).dec()
-            except ImportError:
-                pass  # Metrics not available in test environment
-
-            logger.info(f"Stopped stream {stream_id}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to stop stream: {e}")
-            return False
-
-    async def get_stream_status(self, stream_id: str) -> Dict[str, Any]:
-        """Get status of a running stream"""
-        try:
-            # Get from database
-            db_stream = await self.stream_repository.get_stream(stream_id)
-
-            if not db_stream:
-                return {"error": "Stream not found"}
-
-            # Check if still active in memory
-            is_active = stream_id in self.active_streams
-
+            logger.error(f"Failed to start automatic ingestion: {e}", exc_info=True)
             return {
-                "stream_id": stream_id,
-                "is_active": is_active,
-                "symbols": db_stream["symbols"],
-                "exchange": db_stream["exchange"],
-                "stream_type": db_stream["stream_type"],
-                "status": db_stream["status"],
-                "events_processed": db_stream["events_processed"],
-                "started_at": (
-                    db_stream["started_at"].isoformat()
-                    if db_stream["started_at"]
-                    else None
-                ),
-                "last_event_at": (
-                    db_stream["last_event_at"].isoformat()
-                    if db_stream["last_event_at"]
-                    else None
-                ),
+                "success": False,
+                "error": str(e),
             }
 
-        except Exception as e:
-            logger.error(f"Failed to get stream status: {e}")
-            return {"error": str(e)}
-
-    async def fetch_historical_data(
+    async def start_symbol_refresh_task(
         self,
-        symbol: str,
-        exchange: str,
-        start_time: datetime,
-        end_time: datetime,
-        interval: str,
-        limit: int = 1000,
-    ) -> List[Dict[str, Any]]:
-        """Fetch historical market data"""
-        try:
-            # Convert datetime to milliseconds
-            start_ms = int(start_time.timestamp() * 1000)
-            end_ms = int(end_time.timestamp() * 1000)
+        refresh_interval_hours: int,
+        intervals: List[str],
+        quote_currency: str,
+        enable_ticker: bool,
+        max_symbols_per_connection: int,
+        kafka_topic: str,
+    ):
+        """
+        Start background task to periodically refresh symbol list
 
-            # Fetch from Binance
-            candles = await self.binance_connector.fetch_historical_klines(
-                symbol=symbol,
-                interval=interval,
-                start_time=start_ms,
-                end_time=end_ms,
-                limit=limit,
-            )
+        Args:
+            refresh_interval_hours: How often to refresh (in hours)
+            intervals: Kline intervals
+            quote_currency: Quote currency filter
+            enable_ticker: Enable ticker streams
+            max_symbols_per_connection: Max symbols per connection
+            kafka_topic: Kafka topic
+        """
+        logger.info(
+            f"Starting symbol refresh task (every {refresh_interval_hours} hours)"
+        )
 
-            # Enrich with exchange info
-            for candle in candles:
-                candle["exchange"] = exchange
+        async def refresh_loop():
+            while True:
+                try:
+                    # Wait for refresh interval
+                    await asyncio.sleep(refresh_interval_hours * 3600)
 
-            logger.info(f"Fetched {len(candles)} historical candles for {symbol}")
-            return candles
+                    logger.info("🔄 Refreshing symbol list...")
 
-        except Exception as e:
-            logger.error(f"Failed to fetch historical data: {e}")
-            return []
+                    # Fetch new symbol list
+                    new_symbols = await self.binance_connector.get_all_trading_symbols(
+                        quote_currency=quote_currency
+                    )
+
+                    # Check if symbols changed
+                    added = set(new_symbols) - set(self.symbol_list)
+                    removed = set(self.symbol_list) - set(new_symbols)
+
+                    if added or removed:
+                        logger.info(
+                            f"Symbol list changed: +{len(added)} added, -{len(removed)} removed"
+                        )
+
+                        # Stop all existing streams
+                        logger.info("Stopping existing streams...")
+                        for conn_id in self.active_connections:
+                            try:
+                                await self.binance_connector.stop_stream(conn_id)
+                            except Exception as e:
+                                logger.error(f"Error stopping stream {conn_id}: {e}")
+
+                        # Restart with new symbol list
+                        logger.info("Restarting streams with updated symbol list...")
+                        await self.start_auto_ingestion(
+                            intervals=intervals,
+                            quote_currency=quote_currency,
+                            enable_ticker=enable_ticker,
+                            max_symbols_per_connection=max_symbols_per_connection,
+                            kafka_topic=kafka_topic,
+                        )
+                    else:
+                        logger.info("✅ Symbol list unchanged")
+
+                except Exception as e:
+                    logger.error(f"Error in symbol refresh task: {e}", exc_info=True)
+
+        self.refresh_task = asyncio.create_task(refresh_loop())
+
+    async def stop_auto_ingestion(self):
+        """Stop all active streams and background tasks"""
+        logger.info("Stopping automatic ingestion...")
+
+        # Stop refresh task
+        if self.refresh_task:
+            self.refresh_task.cancel()
+            try:
+                await self.refresh_task
+            except asyncio.CancelledError:
+                pass
+
+        # Stop all WebSocket connections
+        for conn_id in self.active_connections:
+            try:
+                await self.binance_connector.stop_stream(conn_id)
+            except Exception as e:
+                logger.error(f"Error stopping stream {conn_id}: {e}")
+
+        self.active_connections = []
+        logger.info("✅ Automatic ingestion stopped")
+
+    def get_status(self) -> Dict[str, Any]:
+        """Get current ingestion status"""
+        return {
+            "active_connections": len(self.active_connections),
+            "symbols_count": len(self.symbol_list),
+            "symbols": self.symbol_list[:10],  # First 10 for preview
+            "is_running": len(self.active_connections) > 0,
+        }
 
     async def _handle_market_data(
-        self, data: Dict[str, Any], stream_id: str, kafka_topic: str
+        self, data: Dict[str, Any], data_type: str, kafka_topic: str
     ):
-        """Handle incoming market data from connector"""
-        start_time = time.time()
-        
-        exchange = data.get("exchange", "binance")
-        stream_type = data.get("type", "unknown")
-        symbol = data.get("symbol", "unknown")
-        
+        """
+        Handle incoming market data and publish to Kafka
+
+        Args:
+            data: Raw data from WebSocket
+            data_type: Type of data (kline, ticker, trade)
+            kafka_topic: Kafka topic to publish to
+        """
         try:
-            # Import metrics (skip if not available in test environment)
-            try:
-                from main import RECORDS_RECEIVED, RECORDS_PUBLISHED, RECORDS_FAILED, PROCESSING_LATENCY
-                metrics_available = True
-            except ImportError:
-                metrics_available = False
-            
-            # Increment received counter
-            if metrics_available:
-                RECORDS_RECEIVED.labels(
-                    exchange=exchange,
-                    stream_type=stream_type,
-                    symbol=symbol
-                ).inc()
-            
+            # Extract symbol from data
+            # For combined streams, data structure is: {"stream": "btcusdt@kline_1m", "data": {...}}
+            if "stream" in data and "data" in data:
+                stream_name = data["stream"]
+                inner_data = data["data"]
+                
+                # Determine type from stream name
+                if "@kline_" in stream_name:
+                    normalized = self._normalize_kline(inner_data)
+                elif "@ticker" in stream_name:
+                    normalized = self._normalize_ticker(inner_data)
+                else:
+                    logger.warning(f"Unknown stream type: {stream_name}")
+                    return
+            else:
+                # Direct stream (not combined)
+                if data_type == "kline":
+                    normalized = self._normalize_kline(data)
+                elif data_type == "ticker":
+                    normalized = self._normalize_ticker(data)
+                else:
+                    logger.warning(f"Unknown data type: {data_type}")
+                    return
+
             # Publish to Kafka
+            symbol = normalized.get("symbol", "UNKNOWN")
             success = await self.kafka_repository.publish_market_data(
                 symbol=symbol,
-                exchange=exchange,
-                data=data,
+                exchange="binance",
+                data=normalized,
                 topic=kafka_topic,
             )
 
-            if success:
-                # Increment published counter
-                if metrics_available:
-                    RECORDS_PUBLISHED.labels(
-                        exchange=exchange,
-                        stream_type=stream_type,
-                        symbol=symbol,
-                        topic=kafka_topic
-                    ).inc()
-                    
-                    # Record processing time
-                    PROCESSING_LATENCY.labels(
-                        exchange=exchange,
-                        stream_type=stream_type
-                    ).observe(time.time() - start_time)
-                
-                # Update stream metrics
-                await self.stream_repository.increment_event_count(stream_id)
-            else:
-                if metrics_available:
-                    RECORDS_FAILED.labels(
-                        exchange=exchange,
-                        stream_type=stream_type,
-                        symbol=symbol,
-                        reason="kafka_publish_failed"
-                    ).inc()
-                logger.error(f"Failed to publish data for stream {stream_id}")
+            if not success:
+                logger.error(f"Failed to publish {data_type} data for {symbol}")
 
         except Exception as e:
-            # Increment failure counter
-            try:
-                from main import RECORDS_FAILED
-                RECORDS_FAILED.labels(
-                    exchange=exchange,
-                    stream_type=stream_type,
-                    symbol=symbol,
-                    reason="exception"
-                ).inc()
-            except ImportError:
-                pass
             logger.error(f"Error handling market data: {e}", exc_info=True)
+
+    def _normalize_kline(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize kline data to standard format"""
+        kline = data.get("k", {})
+        return {
+            "type": "kline",
+            "symbol": kline.get("s"),
+            "interval": kline.get("i"),
+            "timestamp": kline.get("t"),
+            "open": float(kline.get("o", 0)),
+            "high": float(kline.get("h", 0)),
+            "low": float(kline.get("l", 0)),
+            "close": float(kline.get("c", 0)),
+            "volume": float(kline.get("v", 0)),
+            "close_time": kline.get("T"),
+            "quote_volume": float(kline.get("q", 0)),
+            "trade_count": int(kline.get("n", 0)),
+            "taker_buy_volume": float(kline.get("V", 0)),
+            "taker_buy_quote_volume": float(kline.get("Q", 0)),
+            "is_closed": kline.get("x", False),
+            "exchange": "binance",
+        }
+
+    def _normalize_ticker(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize ticker data to standard format"""
+        return {
+            "type": "ticker",
+            "symbol": data.get("s"),
+            "price": float(data.get("c", 0)),
+            "volume": float(data.get("v", 0)),
+            "bid_price": float(data.get("b", 0)),
+            "ask_price": float(data.get("a", 0)),
+            "bid_volume": float(data.get("B", 0)),
+            "ask_volume": float(data.get("A", 0)),
+            "high_24h": float(data.get("h", 0)),
+            "low_24h": float(data.get("l", 0)),
+            "volume_24h": float(data.get("v", 0)),
+            "price_change_24h": float(data.get("p", 0)),
+            "price_change_pct_24h": float(data.get("P", 0)),
+            "trade_count": int(data.get("n", 0)),
+            "timestamp": data.get("E", int(datetime.now().timestamp() * 1000)),
+            "exchange": "binance",
+        }

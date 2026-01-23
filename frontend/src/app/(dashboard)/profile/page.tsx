@@ -22,8 +22,10 @@ export default function ProfilePage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <UserInfo user={user || undefined} />
-        <Preferences />
+        <div className="space-y-6">
+          <UserInfo user={user || undefined} />
+          <Preferences />
+        </div>
       </div>
     </div>
   );

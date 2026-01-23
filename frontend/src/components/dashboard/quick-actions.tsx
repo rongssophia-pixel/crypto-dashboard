@@ -7,37 +7,30 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Play, BarChart3, Activity, List } from 'lucide-react';
+import { BarChart3, Activity, Archive } from 'lucide-react';
 import Link from 'next/link';
 
 export function QuickActions() {
   const actions = [
     {
-      title: 'Start Stream',
-      description: 'Begin ingesting market data',
-      icon: Play,
-      href: '/admin',
-      variant: 'default' as const,
-    },
-    {
       title: 'View Analytics',
       description: 'Explore charts and metrics',
       icon: BarChart3,
       href: '/analytics',
+      variant: 'default' as const,
+    },
+    {
+      title: 'View Archives',
+      description: 'Download historical data',
+      icon: Archive,
+      href: '/archives',
       variant: 'outline' as const,
     },
     {
       title: 'Real-time Feed',
       description: 'Watch live market updates',
       icon: Activity,
-      href: '/realtime',
-      variant: 'outline' as const,
-    },
-    {
-      title: 'Manage Watchlist',
-      description: 'Add or remove symbols',
-      icon: List,
-      href: '/profile',
+      href: '/analytics#market-data',
       variant: 'outline' as const,
     },
   ];
@@ -49,7 +42,7 @@ export function QuickActions() {
         <CardDescription>Common tasks and shortcuts</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4">
           {actions.map((action) => {
             const Icon = action.icon;
             return (

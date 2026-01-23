@@ -426,13 +426,13 @@ class ClickHouseRepository:
 
     async def get_latest_price(self, symbol: str) -> Optional[Dict[str, Any]]:
         """
-        Get latest price for a symbol
+        Get latest price and stats for a symbol
 
         Args:
             symbol: Trading symbol
 
         Returns:
-            Latest price data or None
+            Latest price data with 24h stats or None
         """
         if not self.client:
             raise RuntimeError("ClickHouse client not connected")
@@ -444,7 +444,13 @@ class ClickHouseRepository:
                 price,
                 volume,
                 bid_price,
-                ask_price
+                ask_price,
+                high_24h,
+                low_24h,
+                volume_24h,
+                price_change_24h,
+                price_change_pct_24h,
+                trade_count
             FROM market_data
             WHERE symbol = %(symbol)s
             ORDER BY timestamp DESC
@@ -467,6 +473,12 @@ class ClickHouseRepository:
                     "volume": sanitize_float(row[3]),
                     "bid_price": sanitize_float(row[4]),
                     "ask_price": sanitize_float(row[5]),
+                    "high_24h": sanitize_float(row[6]),
+                    "low_24h": sanitize_float(row[7]),
+                    "volume_24h": sanitize_float(row[8]),
+                    "price_change_24h": sanitize_float(row[9]),
+                    "price_change_pct_24h": sanitize_float(row[10]),
+                    "trade_count": int(row[11]),
                 }
             return None
 

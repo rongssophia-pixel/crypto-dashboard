@@ -87,3 +87,5 @@ export function LiveTicker({ data, isConnected }: LiveTickerProps) {
     </Card>
   );
 }
+
+

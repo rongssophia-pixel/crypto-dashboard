@@ -247,3 +247,5 @@ async def websocket_stats(request: Request):
     """
     manager: ConnectionManager = request.app.state.ws_manager
     return manager.get_stats()
+
+

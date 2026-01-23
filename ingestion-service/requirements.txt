@@ -1,14 +1,9 @@
 # Ingestion Service Dependencies
-# Install these one by one and pin versions after installation
+# Simplified for automatic ingestion
 
 # Core framework
 fastapi
 uvicorn[standard]
-
-# gRPC
-grpcio
-grpcio-tools
-protobuf
 
 # Kafka
 confluent-kafka>=2.3.0
@@ -17,24 +12,12 @@ confluent-kafka>=2.3.0
 pydantic
 pydantic-settings
 
-# Authentication
-python-jose[cryptography]
-passlib[bcrypt]
-
 # HTTP clients
 aiohttp
-httpx
 websockets
-
-# Crypto exchange library
-ccxt
 
 # Monitoring
 prometheus-client
-
-# Database
-psycopg2-binary
-sqlalchemy
 
 # Utilities
 python-dateutil
@@ -48,3 +31,10 @@ pre-commit
 # Testing
 pytest
 pytest-asyncio
+
+# Note: Removed dependencies:
+# - grpcio/grpcio-tools/protobuf (no longer using gRPC)
+# - psycopg2-binary/sqlalchemy (no longer using PostgreSQL for stream tracking)
+# - ccxt (using native Binance WebSocket API)
+# - python-jose/passlib (JWT auth handled by API gateway)
+# - httpx (using aiohttp only)

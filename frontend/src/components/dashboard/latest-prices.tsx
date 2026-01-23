@@ -146,3 +146,5 @@ export function LatestPrices({ data = [], isLoading = false, error }: LatestPric
     </Card>
   );
 }
+
+

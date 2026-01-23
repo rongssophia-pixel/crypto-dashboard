@@ -14,35 +14,23 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 
-const POPULAR_SYMBOLS = [
-  'BTCUSDT',
-  'ETHUSDT',
-  'BNBUSDT',
-  'ADAUSDT',
-  'DOGEUSDT',
-  'XRPUSDT',
-  'DOTUSDT',
-  'UNIUSDT',
-  'LINKUSDT',
-  'SOLUSDT',
-];
-
 interface SymbolSelectorProps {
   value: string;
   onChange: (value: string) => void;
+  symbols: string[];
   disabled?: boolean;
 }
 
-export function SymbolSelector({ value, onChange, disabled }: SymbolSelectorProps) {
+export function SymbolSelector({ value, onChange, symbols, disabled }: SymbolSelectorProps) {
   return (
     <div className="space-y-2">
       <Label>Symbol</Label>
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <Select value={value} onValueChange={onChange} disabled={disabled || symbols.length === 0}>
         <SelectTrigger className="w-full md:w-48">
-          <SelectValue placeholder="Select symbol" />
+          <SelectValue placeholder={symbols.length === 0 ? "No symbols in watchlist" : "Select symbol"} />
         </SelectTrigger>
         <SelectContent>
-          {POPULAR_SYMBOLS.map((symbol) => (
+          {symbols.map((symbol) => (
             <SelectItem key={symbol} value={symbol}>
               {symbol}
             </SelectItem>
@@ -52,3 +40,4 @@ export function SymbolSelector({ value, onChange, disabled }: SymbolSelectorProp
     </div>
   );
 }
+

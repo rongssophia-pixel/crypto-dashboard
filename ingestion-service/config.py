@@ -4,7 +4,7 @@ Loads configuration from environment variables
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
@@ -20,7 +20,6 @@ class Settings(BaseSettings):
     
     # Service info
     service_name: str = "ingestion-service"
-    service_port: int = 50051  # gRPC port
     http_port: int = 8001  # FastAPI HTTP port for monitoring
     
     # Kafka configuration
@@ -28,32 +27,37 @@ class Settings(BaseSettings):
     # Docker deployment: override with KAFKA_BOOTSTRAP_SERVERS=kafka:19092
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_topic_raw_market_data: str = "crypto.raw.market-data"
-    kafka_topic_processed_market_data: str = "crypto.processed.market-data"
     kafka_security_protocol: str = "PLAINTEXT"
     kafka_sasl_mechanism: Optional[str] = None
     kafka_sasl_username: Optional[str] = None
     kafka_sasl_password: Optional[str] = None
     
-    # PostgreSQL configuration
-    # Local development: localhost
-    # Docker deployment: override with POSTGRES_HOST=postgres
-    postgres_host: str = "localhost"
-    postgres_port: int = 5432
-    postgres_db: str
-    postgres_user: str
-    postgres_password: str
-    
     # Binance API configuration
     binance_api_key: Optional[str] = None
     binance_api_secret: Optional[str] = None
     binance_websocket_url: str = "wss://stream.binance.us:9443"
+    binance_rest_api_url: str = "https://api.binance.us"
     
-    # JWT configuration
-    jwt_secret_key: str
+    # Auto-ingestion configuration
+    auto_start_ingestion: bool = True
+    kline_intervals: str = "1m,5m,15m,1h,4h,1d"  # Comma-separated intervals
+    enable_ticker_streams: bool = True
+    enable_trade_streams: bool = False
+    symbol_filter_quote_currency: str = "USDT"
+    max_symbols_per_connection: int = 50  # Reduced to avoid HTTP 414 (URI too long)
+    symbol_refresh_interval_hours: int = 24
+    
+    # JWT configuration (kept for compatibility)
+    jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     
     # Monitoring
     prometheus_port: int = 9100
+    
+    @property
+    def kline_interval_list(self) -> List[str]:
+        """Parse comma-separated kline intervals into a list"""
+        return [interval.strip() for interval in self.kline_intervals.split(",")]
 
 
 # Global settings instance

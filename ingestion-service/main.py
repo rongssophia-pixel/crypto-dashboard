@@ -1,6 +1,6 @@
 """
 Ingestion Service Main Entry Point
-Handles real-time data collection from crypto exchanges
+Automatically ingests market data from Binance for all USDT trading pairs
 """
 
 import sys
@@ -14,22 +14,16 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
-from concurrent import futures
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.responses import Response
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram, Gauge
-import grpc
-from psycopg2.pool import SimpleConnectionPool
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from config import settings
-from api.grpc_servicer import IngestionServiceServicer
 from services.ingestion_service import IngestionBusinessService
-from repositories.stream_repository import StreamRepository
 from repositories.kafka_repository import KafkaRepository
 from connectors.binance_connector import BinanceConnector
 from shared.kafka_utils.producer import KafkaProducerWrapper
-from proto import ingestion_pb2_grpc
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,112 +32,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ========================================
-# PROMETHEUS METRICS
-# ========================================
-# Helper function to safely create or get existing metrics
-def get_or_create_counter(name, description, labelnames):
-    """Get existing counter or create new one"""
-    from prometheus_client import REGISTRY
-    
-    # Try to find existing metric
-    # For counters, strip _total suffix if present when checking _name
-    base_name = name.replace('_total', '') if name.endswith('_total') else name
-    
-    for collector in list(REGISTRY._collector_to_names.keys()):
-        if hasattr(collector, '_name') and collector._name == base_name:
-            return collector
-    
-    # If not found, create new one
-    try:
-        return Counter(name, description, labelnames)
-    except ValueError:
-        # If we still get a duplicate error, try to find it again
-        for collector in list(REGISTRY._collector_to_names.keys()):
-            if hasattr(collector, '_name') and collector._name == base_name:
-                return collector
-        raise
-
-def get_or_create_gauge(name, description, labelnames):
-    """Get existing gauge or create new one"""
-    from prometheus_client import REGISTRY
-    
-    for collector in list(REGISTRY._collector_to_names.keys()):
-        if hasattr(collector, '_name') and collector._name == name:
-            return collector
-    
-    try:
-        return Gauge(name, description, labelnames)
-    except ValueError:
-        for collector in list(REGISTRY._collector_to_names.keys()):
-            if hasattr(collector, '_name') and collector._name == name:
-                return collector
-        raise
-
-def get_or_create_histogram(name, description, labelnames):
-    """Get existing histogram or create new one"""
-    from prometheus_client import REGISTRY
-    
-    for collector in list(REGISTRY._collector_to_names.keys()):
-        if hasattr(collector, '_name') and collector._name == name:
-            return collector
-    
-    try:
-        return Histogram(name, description, labelnames)
-    except ValueError:
-        for collector in list(REGISTRY._collector_to_names.keys()):
-            if hasattr(collector, '_name') and collector._name == name:
-                return collector
-        raise
-
-# Initialize metrics
-RECORDS_RECEIVED = get_or_create_counter(
-    "ingestion_records_received_total",
-    "Total records received from exchanges",
-    ["exchange", "stream_type", "symbol"]
-)
-
-RECORDS_PUBLISHED = get_or_create_counter(
-    "ingestion_records_published_total",
-    "Total records published to Kafka",
-    ["exchange", "stream_type", "symbol", "topic"]
-)
-
-RECORDS_FAILED = get_or_create_counter(
-    "ingestion_records_failed_total",
-    "Total records that failed to publish",
-    ["exchange", "stream_type", "symbol", "reason"]
-)
-
-ACTIVE_STREAMS = get_or_create_gauge(
-    "ingestion_active_streams",
-    "Number of active ingestion streams",
-    ["exchange", "stream_type"]
-)
-
-PROCESSING_LATENCY = get_or_create_histogram(
-    "ingestion_processing_duration_seconds",
-    "Time to process and publish record",
-    ["exchange", "stream_type"]
-)
-
-
 class AppState:
     """Centralized application state container"""
     # Infrastructure resources
-    db_pool: SimpleConnectionPool = None
     kafka_producer: KafkaProducerWrapper = None
     binance_connector: BinanceConnector = None
     
     # Repositories
-    stream_repository: StreamRepository = None
     kafka_repository: KafkaRepository = None
     
     # Business service
     ingestion_service: IngestionBusinessService = None
-    
-    # Servers
-    grpc_server = None
 
 
 app_state = AppState()
@@ -161,20 +60,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     logger.info(f"🚀 Starting {settings.service_name}...")
     
     try:
-        # 1. Initialize PostgreSQL connection pool
-        logger.info("Initializing PostgreSQL connection pool...")
-        app_state.db_pool = SimpleConnectionPool(
-            minconn=2,
-            maxconn=10,
-            host=settings.postgres_host,
-            port=settings.postgres_port,
-            database=settings.postgres_db,
-            user=settings.postgres_user,
-            password=settings.postgres_password,
-        )
-        logger.info("✅ PostgreSQL pool initialized")
-        
-        # 2. Initialize Kafka producer
+        # 1. Initialize Kafka producer
         logger.info("Initializing Kafka producer...")
         app_state.kafka_producer = KafkaProducerWrapper(
             bootstrap_servers=settings.kafka_bootstrap_servers,
@@ -186,56 +72,76 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         )
         logger.info("✅ Kafka producer initialized")
         
-        # 3. Initialize Binance connector
+        # 2. Initialize Binance connector
         logger.info("Initializing Binance connector...")
         app_state.binance_connector = BinanceConnector(
             websocket_url=settings.binance_websocket_url,
             api_key=settings.binance_api_key,
             api_secret=settings.binance_api_secret,
         )
+        # Update REST API URL if configured
+        app_state.binance_connector.rest_base_url = settings.binance_rest_api_url
         logger.info("✅ Binance connector initialized")
         
-        # 4. Initialize repositories
+        # 3. Initialize repositories
         logger.info("Initializing repositories...")
-        app_state.stream_repository = StreamRepository(app_state.db_pool)
         app_state.kafka_repository = KafkaRepository(app_state.kafka_producer)
         logger.info("✅ Repositories initialized")
         
-        # 5. Initialize business service
+        # 4. Initialize business service
         logger.info("Initializing ingestion business service...")
         app_state.ingestion_service = IngestionBusinessService(
-            stream_repository=app_state.stream_repository,
             kafka_repository=app_state.kafka_repository,
             binance_connector=app_state.binance_connector,
         )
         logger.info("✅ Ingestion business service initialized")
         
-        # 6. Start gRPC server (for inter-service communication)
-        logger.info(f"Starting gRPC server on port {settings.service_port}...")
-        app_state.grpc_server = grpc.aio.server(
-            futures.ThreadPoolExecutor(max_workers=10),
-            options=[
-                ('grpc.max_receive_message_length', 50 * 1024 * 1024),  # 50MB
-                ('grpc.max_send_message_length', 50 * 1024 * 1024),
-            ]
-        )
-        
-        # Add servicer to gRPC server
-        ingestion_pb2_grpc.add_IngestionServiceServicer_to_server(
-            IngestionServiceServicer(app_state.ingestion_service, settings.kafka_topic_raw_market_data),
-            app_state.grpc_server
-        )
-        
-        app_state.grpc_server.add_insecure_port(f"[::]:{settings.service_port}")
-        await app_state.grpc_server.start()
-        logger.info(f"✅ gRPC server started on port {settings.service_port}")
+        # 5. Start automatic ingestion if enabled
+        if settings.auto_start_ingestion:
+            logger.info("\n" + "=" * 70)
+            logger.info("🤖 AUTO-START INGESTION ENABLED")
+            logger.info("=" * 70)
+            
+            result = await app_state.ingestion_service.start_auto_ingestion(
+                intervals=settings.kline_interval_list,
+                quote_currency=settings.symbol_filter_quote_currency,
+                enable_ticker=settings.enable_ticker_streams,
+                max_symbols_per_connection=settings.max_symbols_per_connection,
+                kafka_topic=settings.kafka_topic_raw_market_data,
+            )
+            
+            if result.get("success"):
+                logger.info("✅ Automatic ingestion started successfully")
+                
+                # 6. Start background symbol refresh task
+                if settings.symbol_refresh_interval_hours > 0:
+                    await app_state.ingestion_service.start_symbol_refresh_task(
+                        refresh_interval_hours=settings.symbol_refresh_interval_hours,
+                        intervals=settings.kline_interval_list,
+                        quote_currency=settings.symbol_filter_quote_currency,
+                        enable_ticker=settings.enable_ticker_streams,
+                        max_symbols_per_connection=settings.max_symbols_per_connection,
+                        kafka_topic=settings.kafka_topic_raw_market_data,
+                    )
+                    logger.info(
+                        f"✅ Symbol refresh task started "
+                        f"(refresh every {settings.symbol_refresh_interval_hours}h)"
+                    )
+            else:
+                logger.error(
+                    f"❌ Failed to start automatic ingestion: {result.get('error')}"
+                )
+        else:
+            logger.warning("⚠️  Auto-start ingestion is DISABLED")
         
         # Service ready
-        logger.info("=" * 60)
-        logger.info(f"✅ {settings.service_name} is ready!")
+        logger.info("\n" + "=" * 70)
+        logger.info(f"✅ {settings.service_name} is READY!")
         logger.info(f"   - HTTP/FastAPI: port {settings.http_port}")
-        logger.info(f"   - gRPC: port {settings.service_port}")
-        logger.info("=" * 60)
+        logger.info(f"   - Kafka topic: {settings.kafka_topic_raw_market_data}")
+        logger.info(f"   - Kline intervals: {', '.join(settings.kline_interval_list)}")
+        logger.info(f"   - Ticker streams: {'enabled' if settings.enable_ticker_streams else 'disabled'}")
+        logger.info("=" * 70 + "\n")
         
         # Yield control to the application
         yield
@@ -248,33 +154,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         # ========================================
         # SHUTDOWN PHASE
         # ========================================
-        logger.info("=" * 60)
+        logger.info("\n" + "=" * 70)
         logger.info(f"🛑 Shutting down {settings.service_name}...")
-        logger.info("=" * 60)
+        logger.info("=" * 70)
         
-        # 1. Stop all active streams
+        # 1. Stop ingestion service
         if app_state.ingestion_service:
             try:
-                logger.info("Stopping all active streams...")
-                active_stream_ids = list(app_state.ingestion_service.active_streams.keys())
-                for stream_id in active_stream_ids:
-                    await app_state.ingestion_service.stop_stream(
-                        stream_id=stream_id
-                    )
-                logger.info(f"✅ Stopped {len(active_stream_ids)} active stream(s)")
+                logger.info("Stopping ingestion service...")
+                await app_state.ingestion_service.stop_auto_ingestion()
+                logger.info("✅ Ingestion service stopped")
             except Exception as e:
-                logger.error(f"Error stopping streams: {e}")
+                logger.error(f"Error stopping ingestion service: {e}")
         
-        # 2. Stop gRPC server
-        if app_state.grpc_server:
-            try:
-                logger.info("Stopping gRPC server...")
-                await app_state.grpc_server.stop(grace=5.0)
-                logger.info("✅ gRPC server stopped")
-            except Exception as e:
-                logger.error(f"Error stopping gRPC server: {e}")
-        
-        # 3. Close Binance connector
+        # 2. Close Binance connector
         if app_state.binance_connector:
             try:
                 logger.info("Closing Binance connector...")
@@ -283,7 +176,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             except Exception as e:
                 logger.error(f"Error closing Binance connector: {e}")
         
-        # 4. Close Kafka producer
+        # 3. Close Kafka producer
         if app_state.kafka_producer:
             try:
                 logger.info("Closing Kafka producer...")
@@ -293,18 +186,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             except Exception as e:
                 logger.error(f"Error closing Kafka producer: {e}")
         
-        # 5. Close database pool
-        if app_state.db_pool:
-            try:
-                logger.info("Closing database connection pool...")
-                app_state.db_pool.closeall()
-                logger.info("✅ Database pool closed")
-            except Exception as e:
-                logger.error(f"Error closing database pool: {e}")
-        
-        logger.info("=" * 60)
+        logger.info("=" * 70)
         logger.info(f"✅ {settings.service_name} shutdown complete")
-        logger.info("=" * 60)
+        logger.info("=" * 70 + "\n")
 
 
 # ========================================
@@ -312,24 +196,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 # ========================================
 app = FastAPI(
     title="Crypto Ingestion Service",
-    description="Real-time crypto market data ingestion from exchanges",
-    version="1.0.0",
+    description="Automatic crypto market data ingestion from Binance",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
 
 # ========================================
-# DEPENDENCY INJECTION
-# ========================================
-def get_ingestion_service() -> IngestionBusinessService:
-    """Dependency injection for ingestion business service"""
-    if app_state.ingestion_service is None:
-        raise RuntimeError("Ingestion service not initialized")
-    return app_state.ingestion_service
-
-
-# ========================================
-# HTTP ENDPOINTS (Monitoring & Admin)
+# HTTP ENDPOINTS (Monitoring & Status)
 # ========================================
 
 @app.get("/")
@@ -337,9 +211,10 @@ async def root():
     """Root endpoint"""
     return {
         "service": settings.service_name,
-        "version": "1.0.0",
+        "version": "2.0.0",
         "status": "running",
-        "description": "Real-time crypto market data ingestion service"
+        "description": "Automatic crypto market data ingestion service",
+        "mode": "auto-ingestion",
     }
 
 
@@ -353,17 +228,16 @@ async def health_check():
         "service": settings.service_name,
         "status": "healthy",
         "checks": {
-            "grpc_server": app_state.grpc_server is not None,
             "ingestion_service": app_state.ingestion_service is not None,
-            "database_pool": app_state.db_pool is not None and app_state.db_pool.closed == 0,
             "kafka_producer": app_state.kafka_producer is not None,
             "binance_connector": app_state.binance_connector is not None,
         }
     }
     
-    # Add active streams count
+    # Add ingestion status
     if app_state.ingestion_service:
-        health_status["active_streams"] = len(app_state.ingestion_service.active_streams)
+        status = app_state.ingestion_service.get_status()
+        health_status["ingestion"] = status
     
     # Determine overall health
     all_healthy = all(health_status["checks"].values())
@@ -384,26 +258,14 @@ async def metrics():
     )
 
 
-@app.get("/debug/streams")
-async def debug_streams(service: IngestionBusinessService = Depends(get_ingestion_service)):
+@app.get("/status")
+async def get_status():
     """
-    Debug endpoint - list all active streams
-    Should be protected or removed in production
+    Get detailed ingestion status
     """
-    streams = []
-    for stream_id, stream_info in service.active_streams.items():
-        streams.append({
-            "stream_id": stream_id,
-            "symbols": stream_info["symbols"],
-            "exchange": stream_info["exchange"],
-            "stream_type": stream_info["stream_type"],
-            "started_at": stream_info["started_at"].isoformat(),
-        })
-    
-    return {
-        "total_active_streams": len(streams),
-        "streams": streams
-    }
+    if app_state.ingestion_service:
+        return app_state.ingestion_service.get_status()
+    return {"error": "Service not initialized"}
 
 
 # ========================================

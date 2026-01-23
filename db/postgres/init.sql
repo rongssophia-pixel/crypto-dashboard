@@ -168,6 +168,17 @@ CREATE INDEX idx_refresh_tokens_revoked_at ON refresh_tokens(revoked_at);
 
 COMMENT ON TABLE refresh_tokens IS 'Stores refresh tokens for JWT authentication with revocation support';
 
+-- Watchlists table
+CREATE TABLE user_watchlists (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    symbol VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, symbol)
+);
+
+CREATE INDEX idx_user_watchlists_user_id ON user_watchlists(user_id);
+CREATE INDEX idx_user_watchlists_symbol ON user_watchlists(symbol);
+
 INSERT INTO tickers (symbol, name, exchange, base_currency, quote_currency) VALUES
     ('BTCUSDT', 'Bitcoin', 'binance', 'BTC', 'USDT'),
     ('ETHUSDT', 'Ethereum', 'binance', 'ETH', 'USDT'),

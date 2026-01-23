@@ -8,9 +8,10 @@ import math
 import sys
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 
 import grpc
+import aiohttp
 from config import settings
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
@@ -255,6 +256,59 @@ async def query_candles(query: CandleQuery):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get("/ticker/{symbol}")
+async def get_ticker(symbol: str):
+    """
+    Get latest ticker data with 24h stats
+    Proxies to Analytics Service HTTP API
+    """
+    try:
+        url = f"http://{settings.analytics_service_host}:{settings.analytics_service_http_port}/api/v1/ticker/{symbol}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise HTTPException(status_code=404, detail=f"Ticker not found for {symbol}")
+                else:
+                    error_text = await response.text()
+                    logger.error(f"Error fetching ticker from analytics: {response.status} - {error_text}")
+                    raise HTTPException(status_code=response.status, detail="Error fetching ticker data")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_ticker: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/candles/{symbol}")
+async def get_candles_proxy(
+    symbol: str,
+    interval: str = Query("1h", description="Candle interval"),
+    limit: int = Query(100, description="Number of candles"),
+):
+    """
+    Get candles by interval (simplified)
+    Proxies to Analytics Service HTTP API
+    """
+    try:
+        url = f"http://{settings.analytics_service_host}:{settings.analytics_service_http_port}/api/v1/candles/{symbol}"
+        params = {"interval": interval, "limit": limit}
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    error_text = await response.text()
+                    logger.error(f"Error fetching candles from analytics: {response.status} - {error_text}")
+                    raise HTTPException(status_code=response.status, detail="Error fetching candle data")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_candles_proxy: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.get("/market-data/latest")
 async def get_latest_prices(symbols: str = Query(...)):
     """Get latest prices for symbols (comma-separated or multiple params)"""
@@ -383,25 +437,3 @@ async def get_candles(
         limit=limit,
     )
     return await query_candles(query)
-
-
-@router.get("/watchlist")
-async def get_watchlist(current_user: UserContext = Depends(require_auth)):
-    """
-    Get user's crypto watchlist (PROTECTED ENDPOINT EXAMPLE)
-    
-    This endpoint demonstrates JWT authentication with the require_auth dependency.
-    Only authenticated users with valid JWT tokens can access this endpoint.
-    In a real implementation, this would return the user's saved watchlist from the database.
-    """
-    # In a real implementation, you would query user's watchlist from database
-    # For now, return user info to demonstrate authentication works
-    return {
-        "user_id": current_user.user_id,
-        "email": current_user.email,
-        "message": "This endpoint is protected - only accessible with valid JWT token",
-        "watchlist": [
-            {"symbol": "BTCUSDT", "added_at": "2025-12-01T00:00:00Z"},
-            {"symbol": "ETHUSDT", "added_at": "2025-12-01T00:00:00Z"},
-        ]  # Would contain user's actual watchlist
-    }
