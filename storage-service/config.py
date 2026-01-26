@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     http_port: int = 8003
 
     # AWS/LocalStack
-    # Local development: http://localhost:4566
-    # Docker deployment: override with AWS_ENDPOINT_URL=http://localstack:4566
-    aws_endpoint_url: str = "http://localhost:4566"
+    # Local development: set AWS_ENDPOINT_URL=http://localhost:4566
+    # Production (Railway): leave unset to use real AWS
+    aws_endpoint_url: str | None = None
     aws_access_key_id: str
     aws_secret_access_key: str
     aws_region: str = "us-east-1"
@@ -65,6 +65,21 @@ class Settings(BaseSettings):
 
     # Monitoring
     prometheus_port: int = 9103
+
+    # Archival TTL Configuration (data older than TTL will be archived to S3 then deleted)
+    # Use hours for finer granularity (e.g., 24 = 1 day, 6 = 6 hours)
+    market_data_ttl_hours: int = 2  # Default: 24 hours (1 day)
+    market_candles_ttl_hours: int = 120  # Default: 120 hours (5 days)
+
+    # Archival Scheduler Configuration
+    archival_enabled: bool = True
+    archival_check_interval_hours: int = 1  # How often to check for data to archive (deprecated, use cron)
+    
+    # Archival Cron Schedules (cron expressions: minute hour day month day_of_week)
+    # Format: "minute hour day month day_of_week"
+    # Examples: "0 * * * *" = every hour, "30 7 * * *" = daily at 7:30 AM UTC
+    archival_market_data_cron: str = "0 * * * *"      # Every hour at minute 0
+    archival_market_candles_cron: str = "30 7 * * *"  # Daily at 7:30 AM UTC (11:30 PM PST)
 
 
 settings = Settings()
