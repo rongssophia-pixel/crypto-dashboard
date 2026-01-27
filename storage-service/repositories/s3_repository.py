@@ -38,6 +38,15 @@ class S3Repository:
                 except Exception as create_err:
                     logger.error("Failed to create bucket '%s': %s", self.bucket_name, create_err)
                     raise
+            elif error_code == "403":
+                # In production (Railway/AWS), bucket might exist but we don't have HeadBucket permission
+                # This is fine - the bucket likely exists and we can still upload/download
+                logger.warning(
+                    "Cannot verify bucket '%s' exists (403 Forbidden). "
+                    "This is normal in production if HeadBucket permission is not granted. "
+                    "Assuming bucket exists and continuing...",
+                    self.bucket_name
+                )
             else:
                 logger.error("Error checking bucket '%s': %s", self.bucket_name, e)
                 raise
