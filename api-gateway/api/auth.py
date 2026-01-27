@@ -244,15 +244,17 @@ async def login(request: LoginRequest):
         # Update last login timestamp
         await user_repo.update_last_login(user["id"])
         
-        # Generate tokens
+        # Generate tokens with roles included
         access_token = jwt_handler.create_access_token(
             user_id=user["id"],
-            email=user["email"]
+            email=user["email"],
+            additional_claims={"roles": user.get("roles", ["user"])}
         )
         
         refresh_token = jwt_handler.create_refresh_token(
             user_id=user["id"],
-            email=user["email"]
+            email=user["email"],
+            additional_claims={"roles": user.get("roles", ["user"])}
         )
         
         # Store refresh token
@@ -301,16 +303,18 @@ async def refresh_token(request: RefreshRequest):
                 detail="Refresh token has been revoked"
             )
         
-        # Generate new access token
+        # Generate new access token with roles
         access_token = jwt_handler.create_access_token(
             user_id=payload["sub"],
-            email=payload["email"]
+            email=payload["email"],
+            additional_claims={"roles": payload.get("roles", ["user"])}
         )
         
         # Optionally rotate refresh token (for better security)
         new_refresh_token = jwt_handler.create_refresh_token(
             user_id=payload["sub"],
-            email=payload["email"]
+            email=payload["email"],
+            additional_claims={"roles": payload.get("roles", ["user"])}
         )
         
         # Revoke old refresh token
