@@ -3,6 +3,7 @@ Storage API Endpoints
 Proxy to Storage Service via gRPC
 """
 
+import httpx
 import logging
 from datetime import datetime
 from typing import List
@@ -186,4 +187,74 @@ async def get_archive_status(
         }
     except Exception as e:
         logger.error(f"Error in get_archive_status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ====================================================================
+# Archival Scheduler Management Endpoints (Admin Only)
+# ====================================================================
+
+@router.get("/scheduler/status")
+async def get_scheduler_status(
+    current_user: UserContext = Depends(require_auth),
+):
+    """
+    Get archival scheduler status and job information (admin only).
+    Returns current schedule, next run times, and execution history.
+    """
+    # Check if user has admin role
+    if "admin" not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Call storage service HTTP API directly
+    try:
+        storage_http_url = f"http://{settings.storage_service_host}:{settings.storage_service_http_port}"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{storage_http_url}/scheduler/status")
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPError as e:
+        logger.error(f"Error calling storage service scheduler/status: {e}")
+        raise HTTPException(status_code=502, detail=f"Storage service error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error in get_scheduler_status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/scheduler/trigger/{job_id}")
+async def trigger_archival_job(
+    job_id: str,
+    current_user: UserContext = Depends(require_auth),
+):
+    """
+    Manually trigger an archival job (admin only).
+    
+    Valid job_ids:
+    - archive_market_data: Archives high-frequency tick data
+    - archive_market_candles: Archives OHLCV candle data
+    """
+    # Check if user has admin role
+    if "admin" not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Validate job_id
+    valid_jobs = ["archive_market_data", "archive_market_candles"]
+    if job_id not in valid_jobs:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid job_id. Must be one of: {', '.join(valid_jobs)}"
+        )
+    
+    # Call storage service HTTP API directly
+    try:
+        storage_http_url = f"http://{settings.storage_service_host}:{settings.storage_service_http_port}"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(f"{storage_http_url}/scheduler/trigger/{job_id}")
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPError as e:
+        logger.error(f"Error calling storage service scheduler/trigger: {e}")
+        raise HTTPException(status_code=502, detail=f"Storage service error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error in trigger_archival_job: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     analytics_service_http_port: int = 8002
     storage_service_host: str = "localhost"
     storage_service_port: int = 50053
+    storage_service_http_port: int = 8003
     notification_service_host: str = "localhost"
     notification_service_port: int = 50054
     
