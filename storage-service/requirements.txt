@@ -15,6 +15,11 @@ pandas
 python-dateutil
 asyncpg
 
+# Scheduler for automated archival
+apscheduler>=3.10.0
+sqlalchemy>=2.0.0
+psycopg2-binary  # PostgreSQL driver for SQLAlchemy job store
+
 # Development tools
 flake8
 black

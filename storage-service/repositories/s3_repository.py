@@ -15,10 +15,32 @@ logger = logging.getLogger(__name__)
 class S3Repository:
     """Repository for S3 operations."""
 
-    def __init__(self, s3_client, bucket_name: str):
+    def __init__(self, s3_client, bucket_name: str, auto_create_bucket: bool = True):
         self.s3 = s3_client
         self.bucket_name = bucket_name
-        logger.info("S3Repository initialized")
+        logger.info("S3Repository initialized with bucket: %s", bucket_name)
+        
+        if auto_create_bucket:
+            self._ensure_bucket_exists()
+
+    def _ensure_bucket_exists(self) -> None:
+        """Create the bucket if it doesn't exist (for LocalStack/local dev)."""
+        try:
+            self.s3.head_bucket(Bucket=self.bucket_name)
+            logger.info("Bucket '%s' exists", self.bucket_name)
+        except botocore.exceptions.ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if error_code in ("404", "NoSuchBucket"):
+                logger.info("Bucket '%s' not found, creating...", self.bucket_name)
+                try:
+                    self.s3.create_bucket(Bucket=self.bucket_name)
+                    logger.info("Bucket '%s' created successfully", self.bucket_name)
+                except Exception as create_err:
+                    logger.error("Failed to create bucket '%s': %s", self.bucket_name, create_err)
+                    raise
+            else:
+                logger.error("Error checking bucket '%s': %s", self.bucket_name, e)
+                raise
 
     async def upload_file(self, file_path: str, s3_key: str) -> str:
         """Upload a local file to S3."""

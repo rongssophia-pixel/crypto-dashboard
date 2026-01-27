@@ -680,6 +680,90 @@ class ClickHouseRepository:
             )
             raise
 
+    async def delete_data_before(
+        self,
+        data_type: str,
+        cutoff_time: datetime,
+        symbols: Optional[List[str]] = None,
+    ) -> int:
+        """
+        Delete data older than cutoff_time from ClickHouse.
+        Used after successful archival to cold storage.
+
+        Args:
+            data_type: Table to delete from (market_data, market_candles, alert_events)
+            cutoff_time: Delete data with timestamp before this time
+            symbols: Optional symbol filter (delete only specific symbols)
+
+        Returns:
+            Number of rows deleted (approximate, ClickHouse returns affected parts)
+        """
+        if not self.client:
+            raise RuntimeError("ClickHouse client not connected")
+
+        table_map = {
+            "market_data": "market_data",
+            "market_candles": "market_candles",
+            "alert_events": "alert_events",
+        }
+
+        if data_type not in table_map:
+            raise ValueError(f"Unsupported data_type: {data_type}")
+
+        table = table_map[data_type]
+
+        where_clauses = ["timestamp < %(cutoff_time)s"]
+        params: Dict[str, Any] = {"cutoff_time": cutoff_time}
+
+        if symbols:
+            where_clauses.append("symbol IN %(symbols)s")
+            params["symbols"] = symbols
+
+        # First, get count of rows to be deleted (for logging/return)
+        count_query = f"""
+            SELECT count() as cnt
+            FROM {table}
+            WHERE {" AND ".join(where_clauses)}
+        """
+
+        try:
+            count_result = await asyncio.to_thread(
+                self.client.execute, count_query, params
+            )
+            rows_to_delete = count_result[0][0] if count_result else 0
+
+            if rows_to_delete == 0:
+                logger.info(
+                    "No data to delete for %s before %s", data_type, cutoff_time
+                )
+                return 0
+
+            # Execute delete using ALTER TABLE DELETE (lightweight delete)
+            delete_query = f"""
+                ALTER TABLE {table}
+                DELETE WHERE {" AND ".join(where_clauses)}
+            """
+
+            await asyncio.to_thread(self.client.execute, delete_query, params)
+
+            logger.info(
+                "Deleted %d rows from %s before %s",
+                rows_to_delete,
+                data_type,
+                cutoff_time,
+            )
+            return rows_to_delete
+
+        except Exception as e:
+            logger.error(
+                "Error deleting data_type=%s before %s: %s",
+                data_type,
+                cutoff_time,
+                e,
+                exc_info=True,
+            )
+            raise
+
     def get_stats(self) -> Dict[str, Any]:
         """Get repository statistics"""
         return {

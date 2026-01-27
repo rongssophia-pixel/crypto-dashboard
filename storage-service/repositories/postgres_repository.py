@@ -2,12 +2,28 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import asyncpg
 
 logger = logging.getLogger(__name__)
+
+
+def to_naive_utc(dt: datetime) -> datetime:
+    """
+    Convert a datetime to naive UTC for PostgreSQL TIMESTAMP columns.
+    
+    asyncpg has issues with timezone-aware datetimes when the column
+    is TIMESTAMP (without time zone). This normalizes to UTC and strips
+    the timezone info.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        # Convert to UTC and make naive
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
 
 class PostgresRepository:
@@ -58,8 +74,8 @@ class PostgresRepository:
                 query,
                 archive_id,
                 data_type,
-                start_time,
-                end_time,
+                to_naive_utc(start_time),
+                to_naive_utc(end_time),
                 json.dumps(metadata) if metadata else "{}",
             )
             return str(row["id"])
@@ -114,12 +130,12 @@ class PostgresRepository:
 
         if completed_at is not None:
             updates.append(f"completed_at = ${idx}")
-            values.append(completed_at)
+            values.append(to_naive_utc(completed_at))
             idx += 1
 
         if started_at is not None:
             updates.append(f"started_at = ${idx}")
-            values.append(started_at)
+            values.append(to_naive_utc(started_at))
             idx += 1
 
         if not updates:
