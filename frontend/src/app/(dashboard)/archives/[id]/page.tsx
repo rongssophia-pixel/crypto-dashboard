@@ -8,7 +8,7 @@
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useArchiveStatus } from '@/hooks/api/useArchives';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ArrowLeft } from 'lucide-react';
