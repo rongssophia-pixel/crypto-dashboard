@@ -19,10 +19,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Eye, Loader2, FileArchive } from 'lucide-react';
 import { format } from 'date-fns';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function ArchivesPage() {
   const { data: archives, isLoading } = useArchives();
+  const router = useRouter();
 
   const formatFileSize = (bytes?: number) => {
     if (!bytes) return 'N/A';
@@ -109,12 +110,10 @@ export default function ArchivesPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          asChild
+                          onClick={() => router.push(`/archives/${archive.archive_id}`)}
                         >
-                          <Link href={`/archives/${archive.archive_id}`}>
-                            <Eye className="w-4 h-4 mr-2" />
-                            View
-                          </Link>
+                          <Eye className="w-4 h-4 mr-2" />
+                          View
                         </Button>
                       )}
                     </TableCell>
