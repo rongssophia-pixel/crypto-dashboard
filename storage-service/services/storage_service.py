@@ -80,12 +80,13 @@ class StorageBusinessService:
             total_size = await self.s3_repo.calculate_archive_size(s3_prefix)
 
             # 4. Register with Athena
-            # Run MSCK REPAIR TABLE to discover new partitions
-            # Note: This might be slow if many partitions.
+            # Create external table if it doesn't exist
             try:
+                await self._ensure_athena_table_exists(data_type)
+                # Run MSCK REPAIR TABLE to discover new partitions
                 await self.athena_repo.execute_query(f"MSCK REPAIR TABLE {data_type}")
             except Exception as e:
-                logger.warning(f"Failed to repair table partitions: {e}")
+                logger.warning(f"Failed to setup Athena table {data_type}: {e}")
 
             # 5. Update Job
             await self.postgres_repo.update_archive_job(
@@ -141,6 +142,72 @@ class StorageBusinessService:
             raise ValueError(f"Archive job {archive_id} not found")
         return job
 
+    async def _ensure_athena_table_exists(self, data_type: str):
+        """Ensure Athena external table exists for the given data type"""
+        s3_location = f"s3://{self.s3_repo.bucket_name}/{data_type}/"
+        
+        if data_type == "market_data":
+            # Create market_data table
+            create_table_sql = f"""
+            CREATE EXTERNAL TABLE IF NOT EXISTS {data_type} (
+                timestamp TIMESTAMP,
+                symbol STRING,
+                exchange STRING,
+                price DOUBLE,
+                volume DOUBLE,
+                bid_price DOUBLE,
+                ask_price DOUBLE,
+                bid_volume DOUBLE,
+                ask_volume DOUBLE,
+                high_24h DOUBLE,
+                low_24h DOUBLE,
+                volume_24h DOUBLE,
+                price_change_24h DOUBLE,
+                price_change_pct_24h DOUBLE,
+                trade_count INT,
+                metadata STRING
+            )
+            PARTITIONED BY (year INT, month INT, day INT)
+            STORED AS PARQUET
+            LOCATION '{s3_location}'
+            """
+        elif data_type == "market_candles":
+            # Create market_candles table
+            create_table_sql = f"""
+            CREATE EXTERNAL TABLE IF NOT EXISTS {data_type} (
+                timestamp TIMESTAMP,
+                symbol STRING,
+                exchange STRING,
+                interval STRING,
+                open DOUBLE,
+                high DOUBLE,
+                low DOUBLE,
+                close DOUBLE,
+                volume DOUBLE,
+                quote_volume DOUBLE,
+                trade_count INT,
+                taker_buy_volume DOUBLE,
+                taker_buy_quote_volume DOUBLE
+            )
+            PARTITIONED BY (year INT, month INT, day INT)
+            STORED AS PARQUET
+            LOCATION '{s3_location}'
+            """
+        else:
+            logger.warning(f"Unknown data type for Athena table: {data_type}")
+            return
+        
+        try:
+            execution_id = await self.athena_repo.execute_query(create_table_sql)
+            status = await self.athena_repo.wait_for_query(execution_id, timeout=60)
+            if status == "SUCCEEDED":
+                logger.info(f"Athena table {data_type} created or already exists")
+            else:
+                logger.warning(f"Failed to create Athena table {data_type}: {status}")
+        except Exception as e:
+            logger.error(f"Error creating Athena table {data_type}: {e}", exc_info=True)
+            raise
+
     async def list_archives(
         self,
         limit: int,
@@ -188,6 +255,9 @@ class StorageBusinessService:
         
         data_type = job.get("data_type", "market_data")
         
+        # Ensure Athena table exists
+        await self._ensure_athena_table_exists(data_type)
+        
         # Build SQL query (Athena/Presto doesn't support OFFSET)
         sql_parts = [f"SELECT * FROM {data_type}"]
         where_clauses = []
@@ -216,13 +286,31 @@ class StorageBusinessService:
         logger.info(f"Querying archive {archive_id} with SQL: {sql_query}")
         
         # Execute via Athena
-        execution_id = await self.athena_repo.execute_query(sql_query)
-        status = await self.athena_repo.wait_for_query(execution_id)
-        
-        if status != "SUCCEEDED":
-            raise RuntimeError(f"Archive query failed with status {status}")
-        
-        results = await self.athena_repo.get_query_results(execution_id, max_results=limit)
+        try:
+            execution_id = await self.athena_repo.execute_query(sql_query)
+            status = await self.athena_repo.wait_for_query(execution_id)
+            
+            if status != "SUCCEEDED":
+                # Try to get error details from Athena
+                error_msg = f"Archive query failed with status {status}"
+                try:
+                    import asyncio
+                    response = await asyncio.to_thread(
+                        self.athena_repo.athena.get_query_execution,
+                        QueryExecutionId=execution_id
+                    )
+                    error_details = response.get("QueryExecution", {}).get("Status", {}).get("StateChangeReason", "")
+                    if error_details:
+                        error_msg += f": {error_details}"
+                    logger.error(f"Athena query failed: {error_msg}")
+                except Exception as e:
+                    logger.warning(f"Could not get Athena error details: {e}")
+                raise RuntimeError(error_msg)
+            
+            results = await self.athena_repo.get_query_results(execution_id, max_results=limit)
+        except Exception as e:
+            logger.error(f"Error executing Athena query for archive {archive_id}: {e}", exc_info=True)
+            raise
         
         # Add total count
         results["total_count"] = results["row_count"]
