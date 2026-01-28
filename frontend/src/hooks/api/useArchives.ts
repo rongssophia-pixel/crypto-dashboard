@@ -7,22 +7,24 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
 interface Archive {
-  id: string;
-  status: 'completed' | 'processing' | 'failed';
+  archive_id: string;
+  status: 'completed' | 'processing' | 'failed' | 'pending' | 'running';
   created_at: string;
-  row_count?: number;
-  file_size?: number;
+  records_count?: number;
+  size_bytes?: number;
   s3_path?: string;
-  message?: string;
+  data_type?: string;
 }
 
 interface ArchiveStatusResponse {
   archive_id: string;
   status: string;
   created_at: string;
-  row_count?: number;
-  file_size?: number;
+  records_archived?: number;
+  size_bytes?: number;
   s3_path?: string;
+  error_message?: string;
+  completed_at?: string;
 }
 
 interface CreateArchiveParams {
@@ -81,25 +83,19 @@ export function useCreateArchive() {
 }
 
 /**
- * Download an archive
- * This returns a function that triggers the download
+ * Download an archive (deprecated - feature removed)
+ * Keeping for backward compatibility but not functional
  */
 export function useDownloadArchive() {
   return useMutation({
     mutationFn: async (archiveId: string) => {
-      // Get the archive details first
-      const archive = await apiClient.get<Archive>(
-        `/api/v1/storage/archives/${archiveId}/status`
-      );
-      
-      if (!archive.s3_path) {
-        throw new Error('Archive download URL not available');
-      }
-      
-      // For now, return the S3 path. In production, you'd want a signed URL
-      return archive.s3_path;
+      throw new Error('Download feature is not available');
     },
   });
 }
+
+// Export Archive type for use in other components
+export type { Archive, ArchiveStatusResponse };
+
 
 

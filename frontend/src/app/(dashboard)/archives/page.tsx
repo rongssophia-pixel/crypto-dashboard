@@ -5,7 +5,7 @@
  * List and manage data archives
  */
 
-import { useArchives, useDownloadArchive } from '@/hooks/api/useArchives';
+import { useArchives } from '@/hooks/api/useArchives';
 import {
   Table,
   TableBody,
@@ -17,31 +17,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Download, Loader2, FileArchive } from 'lucide-react';
+import { Eye, Loader2, FileArchive } from 'lucide-react';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
+import Link from 'next/link';
 
 export default function ArchivesPage() {
   const { data: archives, isLoading } = useArchives();
-  const downloadMutation = useDownloadArchive();
-
-  const handleDownload = (archiveId: string) => {
-    downloadMutation.mutate(archiveId, {
-      onSuccess: (url) => {
-        // Create a temporary link to trigger download
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `archive-${archiveId}.csv`; // Assuming CSV, adjust if needed
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('Download started');
-      },
-      onError: () => {
-        toast.error('Failed to get download URL');
-      },
-    });
-  };
 
   const formatFileSize = (bytes?: number) => {
     if (!bytes) return 'N/A';
@@ -59,10 +40,13 @@ export default function ArchivesPage() {
     switch (status) {
       case 'completed':
         return 'default'; // primary/black
+      case 'running':
       case 'processing':
         return 'secondary'; // gray
       case 'failed':
         return 'destructive'; // red
+      case 'pending':
+        return 'outline';
       default:
         return 'outline';
     }
@@ -73,7 +57,7 @@ export default function ArchivesPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Archives</h1>
         <p className="text-muted-foreground">
-          Download historical market data archives
+          View and explore historical market data archives
         </p>
       </div>
 
@@ -81,7 +65,7 @@ export default function ArchivesPage() {
         <CardHeader>
           <CardTitle>Data Archives</CardTitle>
           <CardDescription>
-            Access and download generated historical data files
+            View and query generated historical data files
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -108,13 +92,13 @@ export default function ArchivesPage() {
               </TableHeader>
               <TableBody>
                 {archives.map((archive) => (
-                  <TableRow key={archive.id}>
-                    <TableCell className="font-mono text-xs">{archive.id}</TableCell>
+                  <TableRow key={archive.archive_id}>
+                    <TableCell className="font-mono text-xs">{archive.archive_id}</TableCell>
                     <TableCell>
                       {format(new Date(archive.created_at), 'MMM d, yyyy HH:mm')}
                     </TableCell>
-                    <TableCell>{archive.row_count?.toLocaleString() || '-'}</TableCell>
-                    <TableCell>{formatFileSize(archive.file_size)}</TableCell>
+                    <TableCell>{archive.records_count?.toLocaleString() || '-'}</TableCell>
+                    <TableCell>{formatFileSize(archive.size_bytes)}</TableCell>
                     <TableCell>
                       <Badge variant={getStatusColor(archive.status) as any}>
                         {archive.status}
@@ -122,15 +106,15 @@ export default function ArchivesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       {archive.status === 'completed' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDownload(archive.id)}
-                          disabled={downloadMutation.isPending}
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download
-                        </Button>
+                        <Link href={`/archives/${archive.archive_id}`}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            View
+                          </Button>
+                        </Link>
                       )}
                     </TableCell>
                   </TableRow>

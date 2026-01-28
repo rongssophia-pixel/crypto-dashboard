@@ -133,3 +133,40 @@ class StorageServiceServicer(storage_pb2_grpc.StorageServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return storage_pb2.ListArchivesResponse()
+
+    async def QueryArchiveData(self, request, context):
+        """Query specific archive data with pagination and filtering"""
+        try:
+            start_time = None
+            if request.start_time and request.start_time.seconds > 0:
+                start_time = self._get_datetime(request.start_time)
+            
+            end_time = None
+            if request.end_time and request.end_time.seconds > 0:
+                end_time = self._get_datetime(request.end_time)
+
+            result = await self.business_service.query_archive_data(
+                archive_id=request.archive_id,
+                limit=request.limit or 100,
+                offset=request.offset or 0,
+                symbols=list(request.symbols) if request.symbols else None,
+                start_time=start_time,
+                end_time=end_time,
+            )
+
+            rows = []
+            for row_data in result["rows"]:
+                # Convert all values to string for simplicity
+                values_str = {k: str(v) for k, v in row_data.items()}
+                rows.append(storage_pb2.ArchiveRow(values=values_str))
+
+            return storage_pb2.QueryArchiveDataResponse(
+                rows=rows,
+                column_names=result["column_names"],
+                total_count=result.get("total_count", result["row_count"]),
+            )
+        except Exception as e:
+            logger.error(f"QueryArchiveData failed: {e}", exc_info=True)
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return storage_pb2.QueryArchiveDataResponse()

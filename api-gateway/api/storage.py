@@ -258,3 +258,53 @@ async def trigger_archival_job(
     except Exception as e:
         logger.error(f"Unexpected error in trigger_archival_job: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/archives/{archive_id}/data")
+async def query_archive_data(
+    archive_id: str,
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    symbols: List[str] = Query(None),
+    start_time: datetime = Query(None),
+    end_time: datetime = Query(None),
+    current_user: UserContext = Depends(require_auth),
+):
+    """Query archive data with pagination and filtering"""
+    client = get_storage_client()
+    try:
+        user_id = current_user.user_id
+        roles = current_user.roles
+
+        request = storage_pb2.QueryArchiveDataRequest(
+            context=common_pb2.UserContext(user_id=user_id, roles=roles),
+            archive_id=archive_id,
+            limit=limit,
+            offset=offset,
+            symbols=symbols or [],
+        )
+        
+        if start_time:
+            request.start_time.CopyFrom(
+                common_pb2.Timestamp(seconds=int(start_time.timestamp()))
+            )
+        
+        if end_time:
+            request.end_time.CopyFrom(
+                common_pb2.Timestamp(seconds=int(end_time.timestamp()))
+            )
+
+        response = client.QueryArchiveData(request)
+
+        rows = []
+        for row in response.rows:
+            rows.append(dict(row.values))
+
+        return {
+            "rows": rows,
+            "column_names": list(response.column_names),
+            "total_count": response.total_count,
+        }
+    except Exception as e:
+        logger.error(f"Error in query_archive_data: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

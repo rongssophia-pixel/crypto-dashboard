@@ -38,15 +38,6 @@ class S3Repository:
                 except Exception as create_err:
                     logger.error("Failed to create bucket '%s': %s", self.bucket_name, create_err)
                     raise
-            elif error_code == "403":
-                # In production (Railway/AWS), bucket might exist but we don't have HeadBucket permission
-                # This is fine - the bucket likely exists and we can still upload/download
-                logger.warning(
-                    "Cannot verify bucket '%s' exists (403 Forbidden). "
-                    "This is normal in production if HeadBucket permission is not granted. "
-                    "Assuming bucket exists and continuing...",
-                    self.bucket_name
-                )
             else:
                 logger.error("Error checking bucket '%s': %s", self.bucket_name, e)
                 raise
@@ -171,3 +162,22 @@ class S3Repository:
         except Exception as exc:
             logger.error("Failed to delete %s: %s", s3_key, exc, exc_info=True)
             return False
+
+    async def calculate_archive_size(self, prefix: str) -> int:
+        """
+        Calculate total size of all objects with the given prefix.
+        
+        Args:
+            prefix: S3 prefix to filter objects (e.g., "market_data/year=2024/")
+        
+        Returns:
+            Total size in bytes
+        """
+        try:
+            objects = await self.list_objects(prefix=prefix)
+            total_size = sum(obj.get("size", 0) for obj in objects)
+            logger.info("Calculated archive size for prefix '%s': %d bytes", prefix, total_size)
+            return total_size
+        except Exception as exc:
+            logger.error("Failed to calculate archive size for prefix %s: %s", prefix, exc, exc_info=True)
+            return 0
