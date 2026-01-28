@@ -183,55 +183,47 @@ class ArchivalScheduler:
             )
         
         # Job 1: Archive market_data (high frequency tick data, short TTL)
-        # Check if job already exists in DB (from previous run)
-        existing_job = self.scheduler.get_job("archive_market_data")
-        if not existing_job:
-            logger.info("Creating new job: archive_market_data")
-            self.scheduler.add_job(
-                execute_archival_job,
-                CronTrigger(
-                    minute=md_parts[0],
-                    hour=md_parts[1],
-                    day=md_parts[2],
-                    month=md_parts[3],
-                    day_of_week=md_parts[4],
-                ),
-                id="archive_market_data",
-                name="Archive market_data to S3",
-                replace_existing=False,
-                kwargs={
-                    "data_type": "market_data",
-                    "ttl_hours": self.market_data_ttl_hours,
-                    **self.config,
-                },
-            )
-        else:
-            logger.info("Job archive_market_data already exists in database, restoring from persistence")
+        # Use replace_existing=True to handle jobs persisted from previous runs
+        logger.info("Adding/updating job: archive_market_data")
+        self.scheduler.add_job(
+            execute_archival_job,
+            CronTrigger(
+                minute=md_parts[0],
+                hour=md_parts[1],
+                day=md_parts[2],
+                month=md_parts[3],
+                day_of_week=md_parts[4],
+            ),
+            id="archive_market_data",
+            name="Archive market_data to S3",
+            replace_existing=True,  # Replace if exists from previous run
+            kwargs={
+                "data_type": "market_data",
+                "ttl_hours": self.market_data_ttl_hours,
+                **self.config,
+            },
+        )
 
         # Job 2: Archive market_candles (aggregated data, longer TTL)
-        existing_job = self.scheduler.get_job("archive_market_candles")
-        if not existing_job:
-            logger.info("Creating new job: archive_market_candles")
-            self.scheduler.add_job(
-                execute_archival_job,
-                CronTrigger(
-                    minute=mc_parts[0],
-                    hour=mc_parts[1],
-                    day=mc_parts[2],
-                    month=mc_parts[3],
-                    day_of_week=mc_parts[4],
-                ),
-                id="archive_market_candles",
-                name="Archive market_candles to S3",
-                replace_existing=False,
-                kwargs={
-                    "data_type": "market_candles",
-                    "ttl_hours": self.market_candles_ttl_hours,
-                    **self.config,
-                },
-            )
-        else:
-            logger.info("Job archive_market_candles already exists in database, restoring from persistence")
+        logger.info("Adding/updating job: archive_market_candles")
+        self.scheduler.add_job(
+            execute_archival_job,
+            CronTrigger(
+                minute=mc_parts[0],
+                hour=mc_parts[1],
+                day=mc_parts[2],
+                month=mc_parts[3],
+                day_of_week=mc_parts[4],
+            ),
+            id="archive_market_candles",
+            name="Archive market_candles to S3",
+            replace_existing=True,  # Replace if exists from previous run
+            kwargs={
+                "data_type": "market_candles",
+                "ttl_hours": self.market_candles_ttl_hours,
+                **self.config,
+            },
+        )
 
         self.scheduler.start()
         logger.info(
