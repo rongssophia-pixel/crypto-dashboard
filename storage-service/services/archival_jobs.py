@@ -304,7 +304,7 @@ async def execute_archival_job(
     finally:
         # Cleanup connections
         try:
-            await clickhouse_repo.close()
+            await clickhouse_repo.disconnect()
         except Exception as e:
-            logger.warning(f"Error closing ClickHouse connection: {e}")
+            logger.warning(f"Error disconnecting ClickHouse: {e}")
 
