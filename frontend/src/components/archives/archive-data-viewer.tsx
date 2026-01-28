@@ -19,44 +19,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 
 interface ArchiveDataViewerProps {
   archiveId: string;
 }
 
 export default function ArchiveDataViewer({ archiveId }: ArchiveDataViewerProps) {
-  const [page, setPage] = useState(0);
   const [symbolFilter, setSymbolFilter] = useState('');
   const [appliedFilter, setAppliedFilter] = useState('');
-  const pageSize = 50;
+  const pageSize = 100;
 
   const { data, isLoading, error } = useArchiveData({
     archiveId,
     limit: pageSize,
-    offset: page * pageSize,
+    offset: 0,
     symbols: appliedFilter ? [appliedFilter] : undefined,
   });
 
   const handleApplyFilter = () => {
     setAppliedFilter(symbolFilter);
-    setPage(0); // Reset to first page when filtering
   };
 
   const handleClearFilter = () => {
     setSymbolFilter('');
     setAppliedFilter('');
-    setPage(0);
-  };
-
-  const handleNextPage = () => {
-    if (data && data.rows.length === pageSize) {
-      setPage((p) => p + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    setPage((p) => Math.max(0, p - 1));
   };
 
   const formatCellValue = (value: any): string => {
@@ -150,31 +137,13 @@ export default function ArchiveDataViewer({ archiveId }: ArchiveDataViewerProps)
               </Table>
             </div>
 
-            {/* Pagination */}
+            {/* Info */}
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                Showing {page * pageSize + 1} to {page * pageSize + data.rows.length} of{' '}
-                {data.total_count} rows
+                Showing {data.rows.length} rows (limited to {pageSize} most recent)
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePrevPage}
-                  disabled={page === 0}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleNextPage}
-                  disabled={data.rows.length < pageSize}
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
+              <div className="text-sm text-muted-foreground">
+                Note: Pagination not supported by Athena queries
               </div>
             </div>
           </>

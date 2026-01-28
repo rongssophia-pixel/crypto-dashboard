@@ -164,10 +164,13 @@ class StorageBusinessService:
         """
         Query archive data with pagination and filtering.
         
+        Note: Athena doesn't support OFFSET, so pagination is limited.
+        The offset parameter is accepted but ignored for Athena compatibility.
+        
         Args:
             archive_id: Archive job ID to query
             limit: Maximum number of rows to return
-            offset: Number of rows to skip for pagination
+            offset: Number of rows to skip (not supported by Athena, ignored)
             symbols: Optional list of symbols to filter
             start_time: Optional start time filter
             end_time: Optional end time filter
@@ -185,7 +188,7 @@ class StorageBusinessService:
         
         data_type = job.get("data_type", "market_data")
         
-        # Build SQL query
+        # Build SQL query (Athena/Presto doesn't support OFFSET)
         sql_parts = [f"SELECT * FROM {data_type}"]
         where_clauses = []
         
@@ -205,7 +208,8 @@ class StorageBusinessService:
             sql_parts.append("WHERE " + " AND ".join(where_clauses))
         
         sql_parts.append("ORDER BY timestamp DESC")
-        sql_parts.append(f"LIMIT {limit} OFFSET {offset}")
+        sql_parts.append(f"LIMIT {limit}")
+        # Note: OFFSET not supported by Athena, pagination limited to LIMIT only
         
         sql_query = " ".join(sql_parts)
         
@@ -220,7 +224,7 @@ class StorageBusinessService:
         
         results = await self.athena_repo.get_query_results(execution_id, max_results=limit)
         
-        # Add total count (approximate - Athena doesn't support COUNT with OFFSET efficiently)
+        # Add total count
         results["total_count"] = results["row_count"]
         
         return results
