@@ -129,6 +129,18 @@ async def list_archives(
             if arch.created_at and arch.created_at.seconds > 0:
                 created_at = datetime.fromtimestamp(arch.created_at.seconds).isoformat()
 
+            data_min_timestamp = None
+            if arch.data_min_timestamp and arch.data_min_timestamp.seconds > 0:
+                data_min_timestamp = datetime.fromtimestamp(
+                    arch.data_min_timestamp.seconds
+                ).isoformat()
+
+            data_max_timestamp = None
+            if arch.data_max_timestamp and arch.data_max_timestamp.seconds > 0:
+                data_max_timestamp = datetime.fromtimestamp(
+                    arch.data_max_timestamp.seconds
+                ).isoformat()
+
             archives.append(
                 {
                     "archive_id": arch.archive_id,
@@ -138,6 +150,9 @@ async def list_archives(
                     "records_count": arch.records_count,
                     "data_type": arch.data_type,
                     "size_bytes": arch.size_bytes,
+                    "data_min_timestamp": data_min_timestamp,
+                    "data_max_timestamp": data_max_timestamp,
+                    "s3_paths": list(arch.s3_paths) if arch.s3_paths else [],
                 }
             )
 
@@ -177,6 +192,18 @@ async def get_archive_status(
                 response.completed_at.seconds
             ).isoformat()
 
+        data_min_timestamp = None
+        if response.data_min_timestamp and response.data_min_timestamp.seconds > 0:
+            data_min_timestamp = datetime.fromtimestamp(
+                response.data_min_timestamp.seconds
+            ).isoformat()
+
+        data_max_timestamp = None
+        if response.data_max_timestamp and response.data_max_timestamp.seconds > 0:
+            data_max_timestamp = datetime.fromtimestamp(
+                response.data_max_timestamp.seconds
+            ).isoformat()
+
         return {
             "archive_id": response.archive_id,
             "status": response.status,
@@ -185,6 +212,9 @@ async def get_archive_status(
             "error_message": response.error_message,
             "created_at": created_at,
             "completed_at": completed_at,
+            "data_min_timestamp": data_min_timestamp,
+            "data_max_timestamp": data_max_timestamp,
+            "s3_paths": list(response.s3_paths) if response.s3_paths else [],
         }
     except Exception as e:
         logger.error(f"Error in get_archive_status: {e}", exc_info=True)

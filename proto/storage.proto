@@ -17,13 +17,10 @@ service StorageService {
   
   // List available archives
   rpc ListArchives(ListArchivesRequest) returns (ListArchivesResponse);
-  
-  // Query specific archive data with pagination and filtering
-  rpc QueryArchiveData(QueryArchiveDataRequest) returns (QueryArchiveDataResponse);
 }
 
 message ArchiveRequest {
-  common.UserContext context = 1;
+  common.TenantContext context = 1;
   common.Timestamp start_time = 2;
   common.Timestamp end_time = 3;
   repeated string symbols = 4;  // empty = all symbols
@@ -39,7 +36,7 @@ message ArchiveResponse {
 }
 
 message ArchiveQueryRequest {
-  common.UserContext context = 1;
+  common.TenantContext context = 1;
   string sql_query = 2;  // Athena-compatible SQL
   int32 max_results = 3;
 }
@@ -57,7 +54,7 @@ message ArchiveRow {
 
 message ArchiveStatusRequest {
   string archive_id = 1;
-  common.UserContext context = 2;
+  common.TenantContext context = 2;
 }
 
 message ArchiveStatusResponse {
@@ -71,7 +68,7 @@ message ArchiveStatusResponse {
 }
 
 message ListArchivesRequest {
-  common.UserContext context = 1;
+  common.TenantContext context = 1;
   common.Timestamp start_date = 2;
   common.Timestamp end_date = 3;
   int32 limit = 4;
@@ -90,21 +87,5 @@ message ArchiveMetadata {
   int64 size_bytes = 4;
   int64 records_count = 5;
   string data_type = 6;
-  string status = 7;  // pending, running, completed, failed
 }
 
-message QueryArchiveDataRequest {
-  common.UserContext context = 1;
-  string archive_id = 2;
-  int32 limit = 3;
-  int32 offset = 4;
-  repeated string symbols = 5;
-  common.Timestamp start_time = 6;
-  common.Timestamp end_time = 7;
-}
-
-message QueryArchiveDataResponse {
-  repeated ArchiveRow rows = 1;
-  repeated string column_names = 2;
-  int32 total_count = 3;
-}

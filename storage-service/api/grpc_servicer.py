@@ -89,6 +89,16 @@ class StorageServiceServicer(storage_pb2_grpc.StorageServiceServicer):
         try:
             job = await self.business_service.get_archive_status(request.archive_id)
 
+            # Parse s3_paths from JSONB if it exists
+            s3_paths = []
+            if job.get("s3_paths"):
+                import json
+                s3_paths_data = job.get("s3_paths")
+                if isinstance(s3_paths_data, str):
+                    s3_paths = json.loads(s3_paths_data)
+                elif isinstance(s3_paths_data, list):
+                    s3_paths = s3_paths_data
+
             return storage_pb2.ArchiveStatusResponse(
                 archive_id=job["archive_id"],
                 status=job["status"],
@@ -97,6 +107,9 @@ class StorageServiceServicer(storage_pb2_grpc.StorageServiceServicer):
                 error_message=job.get("error_message", ""),
                 created_at=self._to_proto_timestamp(job.get("created_at")),
                 completed_at=self._to_proto_timestamp(job.get("completed_at")),
+                data_min_timestamp=self._to_proto_timestamp(job.get("data_min_timestamp")),
+                data_max_timestamp=self._to_proto_timestamp(job.get("data_max_timestamp")),
+                s3_paths=s3_paths,
             )
         except Exception as e:
             logger.error(f"GetArchiveStatus failed: {e}")
@@ -113,6 +126,16 @@ class StorageServiceServicer(storage_pb2_grpc.StorageServiceServicer):
 
             archives = []
             for job in jobs:
+                # Parse s3_paths from JSONB if it exists
+                s3_paths = []
+                if job.get("s3_paths"):
+                    import json
+                    s3_paths_data = job.get("s3_paths")
+                    if isinstance(s3_paths_data, str):
+                        s3_paths = json.loads(s3_paths_data)
+                    elif isinstance(s3_paths_data, list):
+                        s3_paths = s3_paths_data
+
                 archives.append(
                     storage_pb2.ArchiveMetadata(
                         archive_id=job["archive_id"],
@@ -122,6 +145,9 @@ class StorageServiceServicer(storage_pb2_grpc.StorageServiceServicer):
                         records_count=job.get("records_archived", 0),
                         data_type=job.get("data_type", ""),
                         status=job.get("status", "pending"),
+                        data_min_timestamp=self._to_proto_timestamp(job.get("data_min_timestamp")),
+                        data_max_timestamp=self._to_proto_timestamp(job.get("data_max_timestamp")),
+                        s3_paths=s3_paths,
                     )
                 )
 

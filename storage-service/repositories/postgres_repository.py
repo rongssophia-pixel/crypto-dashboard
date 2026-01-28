@@ -93,6 +93,9 @@ class PostgresRepository:
         error_message: str = None,
         completed_at: datetime = None,
         started_at: datetime = None,
+        data_min_timestamp: datetime = None,
+        data_max_timestamp: datetime = None,
+        s3_paths: List[str] = None,
     ) -> bool:
         """Update archive job status and details."""
         if not self.pool:
@@ -136,6 +139,21 @@ class PostgresRepository:
         if started_at is not None:
             updates.append(f"started_at = ${idx}")
             values.append(to_naive_utc(started_at))
+            idx += 1
+
+        if data_min_timestamp is not None:
+            updates.append(f"data_min_timestamp = ${idx}")
+            values.append(to_naive_utc(data_min_timestamp))
+            idx += 1
+
+        if data_max_timestamp is not None:
+            updates.append(f"data_max_timestamp = ${idx}")
+            values.append(to_naive_utc(data_max_timestamp))
+            idx += 1
+
+        if s3_paths is not None:
+            updates.append(f"s3_paths = ${idx}")
+            values.append(json.dumps(s3_paths))
             idx += 1
 
         if not updates:

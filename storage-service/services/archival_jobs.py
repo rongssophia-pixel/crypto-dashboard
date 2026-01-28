@@ -147,9 +147,11 @@ async def execute_archival_job(
             started_at=datetime.now(timezone.utc),
         )
         
-        # Export and upload data
+        # Export and upload data with timestamp tracking
         total_records = 0
-        s3_prefix = f"{data_type}/year={start_time.year}/month={start_time.month}/day={start_time.day}"
+        data_min_timestamp = None
+        data_max_timestamp = None
+        s3_paths_set = set()
         
         async for batch in clickhouse_repo.export_data_range(
             data_type=data_type,
@@ -160,6 +162,44 @@ async def execute_archival_job(
             if not batch:
                 continue
             
+            # Extract timestamp from first row to track min/max
+            first_row_timestamp = batch[0].get('timestamp')
+            last_row_timestamp = batch[-1].get('timestamp')
+            
+            if first_row_timestamp:
+                if data_min_timestamp is None or first_row_timestamp < data_min_timestamp:
+                    data_min_timestamp = first_row_timestamp
+            
+            if last_row_timestamp:
+                if data_max_timestamp is None or last_row_timestamp > data_max_timestamp:
+                    data_max_timestamp = last_row_timestamp
+            
+            # Add archive_id to each row for filtering in Athena
+            for row in batch:
+                row['archive_id'] = archive_id
+            
+            # Generate S3 path based on actual data timestamp (hourly partitions)
+            if first_row_timestamp:
+                s3_prefix = (
+                    f"{data_type}/"
+                    f"year={first_row_timestamp.year}/"
+                    f"month={first_row_timestamp.month:02d}/"
+                    f"day={first_row_timestamp.day:02d}/"
+                    f"hour={first_row_timestamp.hour:02d}"
+                )
+                s3_paths_set.add(s3_prefix)
+            else:
+                # Fallback to job start_time if timestamp not available
+                logger.warning(f"No timestamp in batch, using job start_time for partitioning")
+                s3_prefix = (
+                    f"{data_type}/"
+                    f"year={start_time.year}/"
+                    f"month={start_time.month:02d}/"
+                    f"day={start_time.day:02d}/"
+                    f"hour={start_time.hour:02d}"
+                )
+                s3_paths_set.add(s3_prefix)
+            
             # Upload batch to S3
             batch_id = str(uuid.uuid4())
             s3_key = f"{s3_prefix}/{archive_id}_{batch_id}.parquet"
@@ -167,8 +207,11 @@ async def execute_archival_job(
             await s3_repo.upload_parquet(batch, s3_key)
             total_records += len(batch)
         
-        # Calculate total archive size
-        total_size = await s3_repo.calculate_archive_size(s3_prefix)
+        # Calculate total archive size across all paths
+        total_size = 0
+        for s3_path_prefix in s3_paths_set:
+            size = await s3_repo.calculate_archive_size(s3_path_prefix)
+            total_size += size
         
         # Register with Athena (optional, may fail)
         try:
@@ -176,15 +219,19 @@ async def execute_archival_job(
         except Exception as e:
             logger.warning(f"Failed to repair table partitions: {e}")
         
-        # Update job status
-        s3_path = f"s3://{s3_bucket_name}/{s3_prefix}"
+        # Update job status with actual data timestamps and paths
+        primary_s3_path = f"s3://{s3_bucket_name}/{list(s3_paths_set)[0]}" if s3_paths_set else None
+        
         await postgres_repo.update_archive_job(
             archive_id=archive_id,
             status="completed",
             records_archived=total_records,
             size_bytes=total_size,
             completed_at=datetime.now(timezone.utc),
-            s3_path=s3_path,
+            s3_path=primary_s3_path,
+            data_min_timestamp=data_min_timestamp,
+            data_max_timestamp=data_max_timestamp,
+            s3_paths=list(s3_paths_set),
         )
         
         if total_records == 0:
@@ -201,7 +248,7 @@ async def execute_archival_job(
             "Archived %d records for %s to %s",
             total_records,
             data_type,
-            s3_path,
+            primary_s3_path,
         )
         
         # Step 2: Delete archived data from ClickHouse
@@ -221,8 +268,10 @@ async def execute_archival_job(
             "data_type": data_type,
             "records_archived": total_records,
             "records_deleted": deleted_count,
-            "s3_path": s3_path,
+            "s3_path": primary_s3_path,
             "archive_id": archive_id,
+            "data_min_timestamp": data_min_timestamp.isoformat() if data_min_timestamp else None,
+            "data_max_timestamp": data_max_timestamp.isoformat() if data_max_timestamp else None,
         }
         
     except Exception as e:
