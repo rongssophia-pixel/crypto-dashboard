@@ -6,8 +6,8 @@ pydantic-settings
 
 # Authentication
 python-jose[cryptography]
-passlib[bcrypt]>=1.7.5
-bcrypt>=4.0.0,<5.0.0  # Explicit bcrypt version for passlib compatibility
+passlib[bcrypt]
+bcrypt>=4.0.0,<5.0.0  # Note: passlib 1.7.4 shows bcrypt version warning but works correctly
 
 # gRPC
 grpcio
