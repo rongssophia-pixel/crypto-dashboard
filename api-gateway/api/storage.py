@@ -132,6 +132,7 @@ async def list_archives(
             archives.append(
                 {
                     "archive_id": arch.archive_id,
+                    "status": arch.status or "pending",
                     "s3_path": arch.s3_path,
                     "created_at": created_at,
                     "records_count": arch.records_count,

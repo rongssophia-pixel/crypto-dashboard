@@ -90,6 +90,7 @@ message ArchiveMetadata {
   int64 size_bytes = 4;
   int64 records_count = 5;
   string data_type = 6;
+  string status = 7;  // pending, running, completed, failed
 }
 
 message QueryArchiveDataRequest {

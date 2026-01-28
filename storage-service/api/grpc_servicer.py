@@ -121,6 +121,7 @@ class StorageServiceServicer(storage_pb2_grpc.StorageServiceServicer):
                         size_bytes=job.get("size_bytes", 0),
                         records_count=job.get("records_archived", 0),
                         data_type=job.get("data_type", ""),
+                        status=job.get("status", "pending"),
                     )
                 )
 
