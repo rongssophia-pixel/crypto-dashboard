@@ -17,6 +17,9 @@ service StorageService {
   
   // List available archives
   rpc ListArchives(ListArchivesRequest) returns (ListArchivesResponse);
+  
+  // Query specific archive data with pagination
+  rpc QueryArchiveData(QueryArchiveDataRequest) returns (QueryArchiveDataResponse);
 }
 
 message ArchiveRequest {
@@ -65,6 +68,9 @@ message ArchiveStatusResponse {
   string error_message = 5;
   common.Timestamp created_at = 6;
   common.Timestamp completed_at = 7;
+  common.Timestamp data_min_timestamp = 8;
+  common.Timestamp data_max_timestamp = 9;
+  repeated string s3_paths = 10;  // multiple S3 paths for partitioned data
 }
 
 message ListArchivesRequest {
@@ -87,5 +93,25 @@ message ArchiveMetadata {
   int64 size_bytes = 4;
   int64 records_count = 5;
   string data_type = 6;
+  string status = 7;  // pending, running, completed, failed
+  common.Timestamp data_min_timestamp = 8;
+  common.Timestamp data_max_timestamp = 9;
+  repeated string s3_paths = 10;  // multiple S3 paths for partitioned data
+}
+
+message QueryArchiveDataRequest {
+  common.UserContext context = 1;
+  string archive_id = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+  repeated string symbols = 5;
+  common.Timestamp start_time = 6;
+  common.Timestamp end_time = 7;
+}
+
+message QueryArchiveDataResponse {
+  repeated ArchiveRow rows = 1;
+  repeated string column_names = 2;
+  int32 total_count = 3;
 }
 
