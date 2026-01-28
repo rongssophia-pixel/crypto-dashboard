@@ -106,15 +106,16 @@ export default function ArchivesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       {archive.status === 'completed' && (
-                        <Link href={`/archives/${archive.archive_id}`}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                          >
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                        >
+                          <Link href={`/archives/${archive.archive_id}`}>
                             <Eye className="w-4 h-4 mr-2" />
                             View
-                          </Button>
-                        </Link>
+                          </Link>
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>
