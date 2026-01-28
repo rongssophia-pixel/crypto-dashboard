@@ -228,6 +228,14 @@ async def websocket_market_data(
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected: {connection_id}")
         
+    except RuntimeError as e:
+        # Handle RuntimeError from receive_text() when WebSocket is already closed
+        if "WebSocket is not connected" in str(e):
+            logger.info(f"WebSocket already disconnected: {connection_id}")
+        else:
+            logger.error(f"WebSocket runtime error for {connection_id}: {e}", exc_info=True)
+            WS_ERRORS.labels(error_type="runtime_error").inc()
+        
     except Exception as e:
         logger.error(f"WebSocket error for {connection_id}: {e}", exc_info=True)
         WS_ERRORS.labels(error_type="connection_error").inc()
@@ -247,5 +255,6 @@ async def websocket_stats(request: Request):
     """
     manager: ConnectionManager = request.app.state.ws_manager
     return manager.get_stats()
+
 
 
