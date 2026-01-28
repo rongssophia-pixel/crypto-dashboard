@@ -88,7 +88,7 @@ export function useCreateArchive() {
  */
 export function useDownloadArchive() {
   return useMutation({
-    mutationFn: async (archiveId: string) => {
+    mutationFn: async (_archiveId: string) => {
       throw new Error('Download feature is not available');
     },
   });
