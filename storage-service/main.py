@@ -115,10 +115,7 @@ async def main():
     athena_client = session.client("athena", endpoint_url=settings.aws_endpoint_url)
 
     # Initialize Repositories
-    # In production (Railway), skip bucket existence check on startup
-    # The bucket should already exist with proper IAM permissions
-    auto_create = settings.aws_endpoint_url is not None  # Only auto-create for LocalStack
-    s3_repo = S3Repository(s3_client, settings.s3_bucket_name, auto_create_bucket=auto_create)
+    s3_repo = S3Repository(s3_client, settings.s3_bucket_name)
     athena_repo = AthenaRepository(
         athena_client,
         settings.athena_database,

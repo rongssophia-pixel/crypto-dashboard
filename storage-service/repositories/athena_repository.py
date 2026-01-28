@@ -31,35 +31,20 @@ class AthenaRepository:
         table_name: str,
         s3_path: str,
         columns: Dict[str, str],
-        partitions: Optional[Dict[str, str]] = None,
         database: str = None,
     ) -> bool:
         """
         Create an external table referencing Parquet files in S3.
-        
-        Args:
-            table_name: Name of the table to create
-            s3_path: S3 location (should not include partition keys in path)
-            columns: Mapping of column_name -> athena_type (e.g., string, double)
-            partitions: Optional mapping of partition_column -> type (e.g., {'year': 'int', 'month': 'int'})
-            database: Database name (defaults to self.database)
-        
-        Returns:
-            True if table creation succeeded
+        Columns should be a mapping of column_name -> athena_type (e.g., string, double).
         """
         db = database or self.database
         cols = ", ".join([f"{name} {atype}" for name, atype in columns.items()])
-        
-        # Build SQL with optional partitions
-        sql = f"CREATE EXTERNAL TABLE IF NOT EXISTS {db}.{table_name} ({cols})"
-        
-        if partitions:
-            partition_cols = ", ".join([f"{name} {ptype}" for name, ptype in partitions.items()])
-            sql += f" PARTITIONED BY ({partition_cols})"
-        
-        sql += f" STORED AS PARQUET LOCATION '{s3_path}'"
-        
-        logger.info("Creating Athena table: %s", sql)
+        sql = (
+            f"CREATE EXTERNAL TABLE IF NOT EXISTS {db}.{table_name} "
+            f"({cols}) "
+            "STORED AS PARQUET "
+            f"LOCATION '{s3_path}'"
+        )
         execution_id = await self.execute_query(sql)
         status = await self.wait_for_query(execution_id, timeout=180)
         return status == "SUCCEEDED"

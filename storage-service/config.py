@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     aws_endpoint_url: str | None = None
     aws_access_key_id: str
     aws_secret_access_key: str
-    aws_region: str = "us-east-1"
+    aws_region: str = "us-east-2"
     s3_bucket_name: str
-    athena_output_bucket: str = "crypto-athena-results"
+    athena_output_bucket: str = "crypto-athena-results-2026"
     athena_database: str = "crypto_archive"
     athena_workgroup: str = "primary"
 

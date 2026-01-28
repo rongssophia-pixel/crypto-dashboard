@@ -1,0 +1,85 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "arn:aws:s3:::crypto-market-data-2026",
+                "arn:aws:s3:::crypto-athena-results-2026"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:DeleteObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::crypto-market-data-2026/*",
+                "arn:aws:s3:::crypto-athena-results-2026/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "athena:StartQueryExecution",
+                "athena:GetQueryExecution",
+                "athena:GetQueryResults",
+                "athena:StopQueryExecution",
+                "athena:GetWorkGroup",
+                "athena:ListQueryExecutions",
+                "athena:GetDataCatalog",
+                "athena:GetDatabase",
+                "athena:GetTableMetadata",
+                "athena:ListTableMetadata",
+                "athena:CreateNamedQuery",
+                "athena:BatchGetNamedQuery"
+            ],
+            "Resource": [
+                "arn:aws:athena:us-east-1:*:workgroup/primary",
+                "arn:aws:athena:us-east-1:*:workgroup/*",
+                "arn:aws:athena:us-east-1:*:datacatalog/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "glue:GetDatabase",
+                "glue:GetTable",
+                "glue:GetPartitions",
+                "glue:GetPartition",
+                "glue:CreateTable",
+                "glue:UpdateTable",
+                "glue:DeleteTable",
+                "glue:CreatePartition",
+                "glue:BatchCreatePartition",
+                "glue:UpdatePartition",
+                "glue:DeletePartition",
+                "glue:BatchDeletePartition",
+                "glue:GetTables",
+                "glue:GetDatabases",
+                "glue:CreateDatabase"
+            ],
+            "Resource": [
+                "arn:aws:glue:us-east-1:*:catalog",
+                "arn:aws:glue:us-east-1:*:database/default",
+                "arn:aws:glue:us-east-1:*:database/crypto_archive",
+                "arn:aws:glue:us-east-1:*:table/crypto_archive/*",
+                "arn:aws:glue:us-east-1:*:table/default/*"
+            ]
+        },
+        {
+            "Sid": "LakeFormationPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "lakeformation:GetDataAccess"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
