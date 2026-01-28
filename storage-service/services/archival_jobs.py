@@ -149,23 +149,80 @@ async def execute_archival_job(
         
         # Export and upload data
         total_records = 0
-        s3_prefix = f"{data_type}/year={start_time.year}/month={start_time.month}/day={start_time.day}"
+        
+        # Group data by time period (hour for market_data, day for others)
+        # This reduces file count and improves Athena query performance
+        time_grouped_data = {}  # key: (year, month, day, hour), value: list of records
         
         async for batch in clickhouse_repo.export_data_range(
             data_type=data_type,
             start_time=start_time,
             end_time=cutoff,
             symbols=None,  # Archive all symbols
+            batch_size=500000,  # Larger batches for efficiency
         ):
             if not batch:
                 continue
             
-            # Upload batch to S3
-            batch_id = str(uuid.uuid4())
-            s3_key = f"{s3_prefix}/{archive_id}_{batch_id}.parquet"
+            # Group records by timestamp (hour for market_data, day for others)
+            for record in batch:
+                record_time = record.get("timestamp")
+                if not record_time:
+                    continue
+                
+                # Extract year/month/day/hour from actual data timestamp
+                if data_type == "market_data":
+                    # Group by hour for high-frequency tick data
+                    time_key = (
+                        record_time.year,
+                        record_time.month,
+                        record_time.day,
+                        record_time.hour,
+                    )
+                else:
+                    # Group by day for aggregated data (market_candles)
+                    time_key = (
+                        record_time.year,
+                        record_time.month,
+                        record_time.day,
+                        None,  # No hour for daily grouping
+                    )
+                
+                if time_key not in time_grouped_data:
+                    time_grouped_data[time_key] = []
+                time_grouped_data[time_key].append(record)
+        
+        # Upload grouped data to S3 (one file per hour/day)
+        logger.info(
+            "Archiving %s: %d time periods to upload",
+            data_type,
+            len(time_grouped_data),
+        )
+        
+        s3_paths = set()
+        for time_key, records in time_grouped_data.items():
+            year, month, day, hour = time_key
             
-            await s3_repo.upload_parquet(batch, s3_key)
-            total_records += len(batch)
+            # Create partition path based on actual data timestamps
+            if hour is not None:
+                # Hourly partitioning for market_data
+                s3_prefix = f"{data_type}/year={year}/month={month}/day={day}/hour={hour}"
+                s3_key = f"{s3_prefix}/{archive_id}.parquet"
+            else:
+                # Daily partitioning for market_candles
+                s3_prefix = f"{data_type}/year={year}/month={month}/day={day}"
+                s3_key = f"{s3_prefix}/{archive_id}.parquet"
+            
+            await s3_repo.upload_parquet(records, s3_key)
+            total_records += len(records)
+            s3_paths.add(f"s3://{s3_bucket_name}/{s3_prefix}")
+        
+        logger.info(
+            "Uploaded %d records across %d time periods for %s",
+            total_records,
+            len(time_grouped_data),
+            data_type,
+        )
         
         # Register with Athena (optional, may fail)
         try:
@@ -174,7 +231,7 @@ async def execute_archival_job(
             logger.warning(f"Failed to repair table partitions: {e}")
         
         # Update job status
-        s3_path = f"s3://{s3_bucket_name}/{s3_prefix}"
+        s3_path = f"s3://{s3_bucket_name}/{data_type}/ (multiple partitions)"
         await postgres_repo.update_archive_job(
             archive_id=archive_id,
             status="completed",
@@ -194,10 +251,10 @@ async def execute_archival_job(
             }
         
         logger.info(
-            "Archived %d records for %s to %s",
+            "Archived %d records for %s across %d partitions",
             total_records,
             data_type,
-            s3_path,
+            len(s3_paths),
         )
         
         # Step 2: Delete archived data from ClickHouse
@@ -218,6 +275,7 @@ async def execute_archival_job(
             "records_archived": total_records,
             "records_deleted": deleted_count,
             "s3_path": s3_path,
+            "s3_partitions": len(s3_paths),
             "archive_id": archive_id,
         }
         
