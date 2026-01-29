@@ -35,7 +35,7 @@ export default function ArchiveDetailPage() {
       size /= 1024;
       unitIndex++;
     }
-    return `${formatNumber(size)} ${units[unitIndex]}`;
+    return `${formatNumber(size, 2)} ${units[unitIndex]}`;
   };
 
   const getStatusColor = (status?: string) => {

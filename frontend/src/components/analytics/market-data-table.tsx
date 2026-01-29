@@ -174,7 +174,7 @@ export function MarketDataTable({
                     {row.ask ? formatPrice(row.ask) : '-'}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {row.spread !== undefined ? formatPercentage(row.spread) : '-'}
+                    {row.spread !== undefined ? formatPercentage(row.spread, 2) : '-'}
                   </TableCell>
                 </TableRow>
               ))}
