@@ -20,13 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 export function WatchlistManager() {
   const [selectedSymbol, setSelectedSymbol] = useState('');
@@ -84,34 +78,20 @@ export function WatchlistManager() {
       </CardHeader>
       <CardContent className="px-0 pb-0">
         <div className="flex gap-2 mb-6">
-          <Select 
-            value={selectedSymbol} 
-            onValueChange={setSelectedSymbol}
+          <SearchableSelect
+            options={availableToAdd}
+            value={selectedSymbol}
+            onChange={setSelectedSymbol}
+            placeholder={
+              isLoadingSymbols 
+                ? "Loading symbols..." 
+                : availableToAdd.length === 0 
+                ? "All symbols added" 
+                : "Search and select a symbol..."
+            }
             disabled={isLoadingSymbols || availableToAdd.length === 0}
-          >
-            <SelectTrigger className="w-full max-w-xs">
-              <SelectValue placeholder={
-                isLoadingSymbols 
-                  ? "Loading symbols..." 
-                  : availableToAdd.length === 0 
-                  ? "All symbols added" 
-                  : "Select a symbol to add"
-              } />
-            </SelectTrigger>
-            <SelectContent>
-              {availableToAdd.length === 0 ? (
-                <SelectItem value="_none" disabled>
-                  All symbols added
-                </SelectItem>
-              ) : (
-                availableToAdd.map((symbol) => (
-                  <SelectItem key={symbol} value={symbol}>
-                    {symbol}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
+            className="w-full max-w-xs"
+          />
           <Button 
             onClick={handleAdd} 
             disabled={addMutation.isPending || !selectedSymbol || isLoadingSymbols}
