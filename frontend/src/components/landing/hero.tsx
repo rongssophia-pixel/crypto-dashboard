@@ -6,7 +6,6 @@
  */
 
 import { Button } from '@/components/ui/button';
-import { BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import PixelBlast from './pixel-blast';
