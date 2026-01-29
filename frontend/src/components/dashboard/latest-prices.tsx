@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { formatDateTime } from '@/lib/time';
+import { formatPrice, formatNumber } from '@/lib/utils';
 
 interface MarketData {
   symbol: string;
@@ -121,7 +122,7 @@ export function LatestPrices({ data = [], isLoading = false, error }: LatestPric
                 >
                   <TableCell className="font-medium">{item.symbol}</TableCell>
                   <TableCell className="text-right font-mono">
-                    ${item.price.toFixed(2)}
+                    {formatPrice(item.price)}
                   </TableCell>
                   <TableCell className="text-right">
                     {item.change_24h !== undefined ? (
@@ -134,7 +135,7 @@ export function LatestPrices({ data = [], isLoading = false, error }: LatestPric
                         ) : (
                           <ArrowDown className="h-3 w-3" />
                         )}
-                        {Math.abs(item.change_24h).toFixed(2)}%
+                        {formatNumber(Math.abs(item.change_24h))}%
                       </Badge>
                     ) : (
                       <span className="text-muted-foreground">-</span>
@@ -142,7 +143,7 @@ export function LatestPrices({ data = [], isLoading = false, error }: LatestPric
                   </TableCell>
                   <TableCell className="text-right font-mono">
                     {item.volume_24h
-                      ? `$${(item.volume_24h / 1000000).toFixed(2)}M`
+                      ? item.volume_24h.toLocaleString()
                       : '-'}
                   </TableCell>
                   <TableCell className="text-right text-sm text-muted-foreground">
