@@ -3,7 +3,8 @@
 import asyncio
 import io
 import logging
-from typing import Dict, List, Sequence, Union
+from decimal import Decimal
+from typing import Any, Dict, List, Sequence, Union
 
 import botocore
 import pyarrow as pa
@@ -19,7 +20,7 @@ class S3Repository:
         self.s3 = s3_client
         self.bucket_name = bucket_name
         logger.info("S3Repository initialized with bucket: %s", bucket_name)
-        
+
         if auto_create_bucket:
             self._ensure_bucket_exists()
 
@@ -36,7 +37,9 @@ class S3Repository:
                     self.s3.create_bucket(Bucket=self.bucket_name)
                     logger.info("Bucket '%s' created successfully", self.bucket_name)
                 except Exception as create_err:
-                    logger.error("Failed to create bucket '%s': %s", self.bucket_name, create_err)
+                    logger.error(
+                        "Failed to create bucket '%s': %s", self.bucket_name, create_err
+                    )
                     raise
             else:
                 logger.error("Error checking bucket '%s': %s", self.bucket_name, e)
@@ -55,27 +58,55 @@ class S3Repository:
             logger.error("Failed to upload file %s: %s", file_path, exc, exc_info=True)
             raise
 
+    def _sanitize_value(self, value: Any) -> Any:
+        """
+        Convert values to PyArrow-compatible types.
+
+        Args:
+            value: Raw value from database
+
+        Returns:
+            Sanitized value compatible with PyArrow
+        """
+        if isinstance(value, Decimal):
+            return float(value)
+        return value
+
+    def _sanitize_row(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Sanitize all values in a row for PyArrow compatibility.
+
+        Args:
+            row: Dictionary row with potentially incompatible types
+
+        Returns:
+            Sanitized row with PyArrow-compatible types
+        """
+        return {key: self._sanitize_value(value) for key, value in row.items()}
+
     def _get_market_data_schema(self) -> pa.Schema:
         """Define explicit schema for market_data to ensure proper Parquet types"""
-        return pa.schema([
-            ('timestamp', pa.timestamp('us')),  # microsecond precision timestamp
-            ('symbol', pa.string()),
-            ('exchange', pa.string()),
-            ('price', pa.float64()),
-            ('volume', pa.float64()),
-            ('bid_price', pa.float64()),
-            ('ask_price', pa.float64()),
-            ('bid_volume', pa.float64()),
-            ('ask_volume', pa.float64()),
-            ('high_24h', pa.float64()),
-            ('low_24h', pa.float64()),
-            ('volume_24h', pa.float64()),
-            ('price_change_24h', pa.float64()),
-            ('price_change_pct_24h', pa.float64()),
-            ('trade_count', pa.int64()),
-            ('metadata', pa.string()),
-            ('archive_id', pa.string()),
-        ])
+        return pa.schema(
+            [
+                ("timestamp", pa.timestamp("us")),  # microsecond precision timestamp
+                ("symbol", pa.string()),
+                ("exchange", pa.string()),
+                ("price", pa.float64()),
+                ("volume", pa.float64()),
+                ("bid_price", pa.float64()),
+                ("ask_price", pa.float64()),
+                ("bid_volume", pa.float64()),
+                ("ask_volume", pa.float64()),
+                ("high_24h", pa.float64()),
+                ("low_24h", pa.float64()),
+                ("volume_24h", pa.float64()),
+                ("price_change_24h", pa.float64()),
+                ("price_change_pct_24h", pa.float64()),
+                ("trade_count", pa.int64()),
+                ("metadata", pa.string()),
+                ("archive_id", pa.string()),
+            ]
+        )
 
     async def upload_parquet(
         self,
@@ -102,10 +133,13 @@ class S3Repository:
                 # Use explicit schema for consistent types
                 if schema is None:
                     schema = self._get_market_data_schema()
-                
+
+                # Sanitize data to convert incompatible types (e.g., Decimal to float)
+                sanitized_data = [self._sanitize_row(row) for row in data]
+
                 # Convert dict list to PyArrow table with explicit schema
                 # This ensures proper type conversion and prevents "object" types
-                table = pa.Table.from_pylist(list(data), schema=schema)
+                table = pa.Table.from_pylist(sanitized_data, schema=schema)
 
             buffer = io.BytesIO()
             pq.write_table(table, buffer, compression=compression)
@@ -119,7 +153,11 @@ class S3Repository:
                 ContentType="application/octet-stream",
             )
             s3_uri = f"s3://{self.bucket_name}/{s3_key}"
-            logger.info("Uploaded parquet to %s with schema: %s columns", s3_uri, len(table.schema))
+            logger.info(
+                "Uploaded parquet to %s with schema: %s columns",
+                s3_uri,
+                len(table.schema),
+            )
             return s3_uri
         except Exception as exc:
             logger.error(
@@ -195,18 +233,25 @@ class S3Repository:
     async def calculate_archive_size(self, prefix: str) -> int:
         """
         Calculate total size of all objects with the given prefix.
-        
+
         Args:
             prefix: S3 prefix to filter objects (e.g., "market_data/year=2024/")
-        
+
         Returns:
             Total size in bytes
         """
         try:
             objects = await self.list_objects(prefix=prefix)
             total_size = sum(obj.get("size", 0) for obj in objects)
-            logger.info("Calculated archive size for prefix '%s': %d bytes", prefix, total_size)
+            logger.info(
+                "Calculated archive size for prefix '%s': %d bytes", prefix, total_size
+            )
             return total_size
         except Exception as exc:
-            logger.error("Failed to calculate archive size for prefix %s: %s", prefix, exc, exc_info=True)
+            logger.error(
+                "Failed to calculate archive size for prefix %s: %s",
+                prefix,
+                exc,
+                exc_info=True,
+            )
             return 0
