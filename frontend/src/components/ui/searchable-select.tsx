@@ -50,6 +50,8 @@ export function SearchableSelect({
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
+    
+    return undefined;
   }, [open]);
 
   const handleSelect = (selectedValue: string) => {
