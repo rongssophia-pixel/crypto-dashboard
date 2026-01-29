@@ -55,11 +55,34 @@ class S3Repository:
             logger.error("Failed to upload file %s: %s", file_path, exc, exc_info=True)
             raise
 
+    def _get_market_data_schema(self) -> pa.Schema:
+        """Define explicit schema for market_data to ensure proper Parquet types"""
+        return pa.schema([
+            ('timestamp', pa.timestamp('us')),  # microsecond precision timestamp
+            ('symbol', pa.string()),
+            ('exchange', pa.string()),
+            ('price', pa.float64()),
+            ('volume', pa.float64()),
+            ('bid_price', pa.float64()),
+            ('ask_price', pa.float64()),
+            ('bid_volume', pa.float64()),
+            ('ask_volume', pa.float64()),
+            ('high_24h', pa.float64()),
+            ('low_24h', pa.float64()),
+            ('volume_24h', pa.float64()),
+            ('price_change_24h', pa.float64()),
+            ('price_change_pct_24h', pa.float64()),
+            ('trade_count', pa.int64()),
+            ('metadata', pa.string()),
+            ('archive_id', pa.string()),
+        ])
+
     async def upload_parquet(
         self,
         data: Union[pa.Table, "pa.RecordBatch", Sequence[Dict]],
         s3_key: str,
         compression: str = "snappy",
+        schema: pa.Schema = None,
     ) -> str:
         """
         Upload data as Parquet to S3.
@@ -68,15 +91,21 @@ class S3Repository:
             data: pyarrow Table/RecordBatch or sequence of dict rows.
             s3_key: destination object key.
             compression: parquet compression codec.
+            schema: Optional explicit schema. If None and data is dict list, uses market_data schema.
         Returns:
             S3 URI string for the uploaded object.
         """
         try:
-            table = (
-                data
-                if isinstance(data, (pa.Table, pa.RecordBatch))
-                else pa.Table.from_pylist(list(data))
-            )
+            if isinstance(data, (pa.Table, pa.RecordBatch)):
+                table = data
+            else:
+                # Use explicit schema for consistent types
+                if schema is None:
+                    schema = self._get_market_data_schema()
+                
+                # Convert dict list to PyArrow table with explicit schema
+                # This ensures proper type conversion and prevents "object" types
+                table = pa.Table.from_pylist(list(data), schema=schema)
 
             buffer = io.BytesIO()
             pq.write_table(table, buffer, compression=compression)
@@ -90,7 +119,7 @@ class S3Repository:
                 ContentType="application/octet-stream",
             )
             s3_uri = f"s3://{self.bucket_name}/{s3_key}"
-            logger.info("Uploaded parquet to %s", s3_uri)
+            logger.info("Uploaded parquet to %s with schema: %s columns", s3_uri, len(table.schema))
             return s3_uri
         except Exception as exc:
             logger.error(
