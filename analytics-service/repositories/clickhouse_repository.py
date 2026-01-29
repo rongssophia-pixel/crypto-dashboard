@@ -508,7 +508,9 @@ class ClickHouseRepository:
                 price,
                 volume,
                 bid_price,
-                ask_price
+                ask_price,
+                volume_24h,
+                price_change_24h
             FROM market_data
             WHERE symbol IN %(symbols)s
             ORDER BY timestamp DESC
@@ -532,6 +534,8 @@ class ClickHouseRepository:
                         "volume": sanitize_float(row[3]),
                         "bid_price": sanitize_float(row[4]),
                         "ask_price": sanitize_float(row[5]),
+                        "volume_24h": sanitize_float(row[6]),
+                        "change_24h": sanitize_float(row[7]),
                     }
                 )
 

@@ -85,7 +85,15 @@ function AnalyticsContent() {
     });
   }, [selectedSymbol, queryMarketData]);
 
-  const tableData = marketDataResponse?.data || [];
+  // Transform data to include bid/ask and calculate spread
+  const tableData = (marketDataResponse?.data || []).map((item: any) => ({
+    ...item,
+    bid: item.bid_price,
+    ask: item.ask_price,
+    spread: item.bid_price && item.ask_price 
+      ? ((item.ask_price - item.bid_price) / item.bid_price) * 100 
+      : undefined,
+  }));
 
   // Show empty state if no watchlist symbols
   if (!isWatchlistLoading && watchlistSymbols.length === 0) {

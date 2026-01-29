@@ -313,55 +313,29 @@ async def get_candles_proxy(
 async def get_latest_prices(symbols: str = Query(...)):
     """Get latest prices for symbols (comma-separated or multiple params)"""
     try:
-        stub = get_analytics_stub()
-
         # Parse symbols - handle both comma-separated string and list
         if isinstance(symbols, str):
             symbol_list = [s.strip() for s in symbols.split(',') if s.strip()]
         else:
             symbol_list = symbols
 
-        # Build gRPC request - use QueryMarketData with limit=1 per symbol
-        # For a more efficient implementation, we'd add a dedicated GetLatestPrices RPC
-        results = []
+        # Call analytics service HTTP endpoint to get latest prices with 24h stats
+        url = f"http://{settings.analytics_service_host}:{settings.analytics_service_http_port}/api/v1/market-data/latest"
+        params = {"symbols": symbol_list}
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # Return "prices" to match frontend expectation
+                    return {"prices": data.get("data", [])}
+                else:
+                    error_text = await response.text()
+                    logger.error(f"Error fetching latest prices from analytics: {response.status} - {error_text}")
+                    raise HTTPException(status_code=response.status, detail="Error fetching latest prices")
 
-        for symbol in symbol_list:
-            request = analytics_pb2.QueryRequest()
-            request.symbols.append(symbol)
-            # Use a recent time range
-            now = datetime.utcnow()
-            request.end_time.CopyFrom(datetime_to_timestamp(now))
-            request.start_time.CopyFrom(
-                datetime_to_timestamp(
-                    datetime(now.year, now.month, now.day)  # Start of day
-                )
-            )
-            request.limit = 1
-            request.order_by = "timestamp_desc"
-
-            response = stub.QueryMarketData(request)
-
-            if response.data:
-                point = response.data[0]
-                results.append(
-                    {
-                        "symbol": point.symbol,
-                        "timestamp": timestamp_to_datetime(point.timestamp).isoformat(),
-                        "price": point.price,
-                        "volume": point.volume,
-                        "bid_price": point.bid_price,
-                        "ask_price": point.ask_price,
-                    }
-                )
-
-        # Return "prices" to match frontend expectation
-        return {"prices": results}
-
-    except grpc.RpcError as e:
-        logger.error(f"gRPC error in get_latest_prices: {e}")
-        raise HTTPException(
-            status_code=503, detail=f"Analytics service unavailable: {e.details()}"
-        )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in get_latest_prices: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
