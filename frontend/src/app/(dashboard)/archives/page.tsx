@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Eye, Loader2, FileArchive } from 'lucide-react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import { formatNumber } from '@/lib/utils';
 
 export default function ArchivesPage() {
   const { data: archives, isLoading } = useArchives();
@@ -34,7 +35,7 @@ export default function ArchivesPage() {
       size /= 1024;
       unitIndex++;
     }
-    return `${size.toFixed(2)} ${units[unitIndex]}`;
+    return `${formatNumber(size)} ${units[unitIndex]}`;
   };
 
   const getStatusColor = (status: string) => {

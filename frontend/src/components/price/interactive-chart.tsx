@@ -17,6 +17,7 @@ import {
   Area,
 } from 'recharts';
 import { formatDateTime, TimeRangePreset } from '@/lib/time';
+import { formatNumber } from '@/lib/utils';
 import { usePriceCandles } from '@/hooks/api/usePriceData';
 import { Maximize2, Share2 } from 'lucide-react';
 
@@ -68,24 +69,24 @@ export function InteractiveChart({ symbol, range: controlledRange, onRangeChange
             <div className="flex justify-between">
                <span>Close</span>
                <span className={`font-mono font-medium ${d.isUp ? 'text-green-500' : 'text-red-500'}`}>
-                 ${d.close.toLocaleString()}
+                 ${formatNumber(d.close)}
                </span>
             </div>
             <div className="flex justify-between">
                <span>Open</span>
-               <span className="font-mono">${d.open.toLocaleString()}</span>
+               <span className="font-mono">${formatNumber(d.open)}</span>
             </div>
             <div className="flex justify-between">
                <span>High</span>
-               <span className="font-mono">${d.high.toLocaleString()}</span>
+               <span className="font-mono">${formatNumber(d.high)}</span>
             </div>
             <div className="flex justify-between">
                <span>Low</span>
-               <span className="font-mono">${d.low.toLocaleString()}</span>
+               <span className="font-mono">${formatNumber(d.low)}</span>
             </div>
             <div className="flex justify-between mt-2 pt-2 border-t border-border/50">
                <span>Volume</span>
-               <span className="font-mono">{d.volume.toLocaleString()}</span>
+               <span className="font-mono">{formatNumber(d.volume)}</span>
             </div>
           </div>
         </div>
@@ -168,7 +169,7 @@ export function InteractiveChart({ symbol, range: controlledRange, onRangeChange
                     axisLine={false}
                     tickLine={false}
                     width={50}
-                    tickFormatter={(val) => val.toFixed(2)}
+                    tickFormatter={(val) => formatNumber(val)}
                   />
                   <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1, strokeDasharray: '4 4' }} />
                   

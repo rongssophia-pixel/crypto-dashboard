@@ -17,7 +17,7 @@ import { useRemoveFromWatchlist } from '@/hooks/api/useWatchlist';
 import { toast } from 'sonner';
 import { subDays } from 'date-fns';
 import { toUTCIso } from '@/lib/time';
-import { cn } from '@/lib/utils';
+import { cn, formatNumber } from '@/lib/utils';
 
 interface WatchlistCardProps {
   symbol: string;
@@ -117,7 +117,7 @@ export function WatchlistCard({ symbol, onClick, isSelected }: WatchlistCardProp
         </div>
         <div className={`flex items-center text-sm font-medium ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
           {isPositive ? <ArrowUpIcon className="w-3 h-3 mr-1" /> : <ArrowDownIcon className="w-3 h-3 mr-1" />}
-          {Math.abs(price?.change_24h || 0).toFixed(2)}%
+          {formatNumber(Math.abs(price?.change_24h || 0))}%
         </div>
       </div>
       

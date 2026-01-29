@@ -1,0 +1,16 @@
+# Railway configuration for storage-service independent deployment
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "storage-service/Dockerfile"
+watchPatterns = ["storage-service/**", "proto/**", "shared/**"]
+
+[deploy]
+startCommand = "python storage-service/main.py"
+restartPolicyType = "ON_FAILURE"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+
+# Railway will automatically set PORT environment variable
+# The service should listen on $PORT for HTTP and use 50053 for gRPC
+

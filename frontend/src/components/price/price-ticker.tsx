@@ -3,6 +3,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { TickerData } from '@/hooks/api/usePriceData';
 import { formatDateTime } from '@/lib/time';
+import { formatNumber } from '@/lib/utils';
 
 interface PriceTickerProps {
   symbol: string;
@@ -75,14 +76,14 @@ export function PriceTicker({
 
       <div className="mt-6 flex items-baseline gap-4">
         <span className="text-5xl font-bold font-mono tracking-tight">
-          ${data.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ${formatNumber(data.price)}
         </span>
         <div className={`flex items-center gap-1 text-lg font-medium ${colorClass}`}>
           {isPositive ? <ArrowUpIcon className="w-5 h-5" /> : <ArrowDownIcon className="w-5 h-5" />}
           <span>
             {isPositive ? '+' : ''}
-            {data.price_change_24h?.toLocaleString(undefined, { maximumFractionDigits: 2 })} (
-            {data.price_change_pct_24h?.toFixed(2)}%)
+            {formatNumber(data.price_change_24h || 0)} (
+            {formatNumber(data.price_change_pct_24h || 0)}%)
           </span>
         </div>
       </div>

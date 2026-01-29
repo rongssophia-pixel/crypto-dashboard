@@ -27,6 +27,7 @@ import {
   Cell,
 } from 'recharts';
 import { formatDateTime } from '@/lib/time';
+import { formatNumber } from '@/lib/utils';
 
 interface CandleData {
   timestamp: string;
@@ -110,34 +111,31 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     // payload[0] is the first active data item (Candle or Volume)
     const data = payload[0].payload;
     
-    // Format numbers
-    const fmt = (val: number) => val.toLocaleString(undefined, { maximumFractionDigits: 2 });
-    
     return (
       <div className="bg-background border border-border p-3 rounded-lg shadow-lg text-xs z-50">
         <p className="font-bold mb-2 text-sm">{label}</p>
         <div className="space-y-1">
           <div className="flex justify-between gap-4">
             <span className="text-muted-foreground">Open:</span>
-            <span className="font-mono">{fmt(data.open)}</span>
+            <span className="font-mono">{formatNumber(data.open)}</span>
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-muted-foreground">High:</span>
-            <span className="font-mono">{fmt(data.high)}</span>
+            <span className="font-mono">{formatNumber(data.high)}</span>
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-muted-foreground">Low:</span>
-            <span className="font-mono">{fmt(data.low)}</span>
+            <span className="font-mono">{formatNumber(data.low)}</span>
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-muted-foreground">Close:</span>
             <span className={`font-mono ${data.close > data.open ? 'text-green-500' : 'text-red-500'}`}>
-              {fmt(data.close)}
+              {formatNumber(data.close)}
             </span>
           </div>
           <div className="flex justify-between gap-4 mt-2 pt-2 border-t border-border">
             <span className="text-muted-foreground">Volume:</span>
-            <span className="font-mono">{fmt(data.volume)}</span>
+            <span className="font-mono">{formatNumber(data.volume)}</span>
           </div>
         </div>
       </div>
@@ -271,7 +269,7 @@ export function CandlestickChart({
                   tick={{ fontSize: 12 }}
                   className="text-muted-foreground"
                   domain={[minPrice - buffer, maxPrice + buffer]}
-                  tickFormatter={(value) => value.toLocaleString()}
+                  tickFormatter={(value) => formatNumber(value)}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar
@@ -299,7 +297,7 @@ export function CandlestickChart({
                   tick={{ fontSize: 12 }}
                   className="text-muted-foreground"
                   domain={['dataMin', 'dataMax']}
-                  tickFormatter={(value) => (value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(1)}K` : value)}
+                  tickFormatter={(value) => (value >= 1000000 ? `${formatNumber(value / 1000000)}M` : value >= 1000 ? `${formatNumber(value / 1000)}K` : value)}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="volume" barSize={10}>

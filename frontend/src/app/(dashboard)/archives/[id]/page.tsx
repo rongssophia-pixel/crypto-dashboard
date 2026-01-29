@@ -15,6 +15,7 @@ import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { formatNumber } from '@/lib/utils';
 import ArchiveDataViewer from '@/components/archives/archive-data-viewer';
 import ArchiveChart from '@/components/archives/archive-chart';
 
@@ -34,7 +35,7 @@ export default function ArchiveDetailPage() {
       size /= 1024;
       unitIndex++;
     }
-    return `${size.toFixed(2)} ${units[unitIndex]}`;
+    return `${formatNumber(size)} ${units[unitIndex]}`;
   };
 
   const getStatusColor = (status?: string) => {

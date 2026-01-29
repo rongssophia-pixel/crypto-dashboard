@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { formatDateTime } from '@/lib/time';
+import { formatPrice, formatNumber } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Trade {
@@ -94,11 +95,11 @@ export function TradeFeed({ trades, maxTrades = 100 }: TradeFeedProps) {
                   </div>
                   <div className="text-right">
                     <p className="font-mono font-semibold">
-                      ${trade.price.toFixed(2)}
+                      {formatPrice(trade.price)}
                     </p>
                     {trade.volume && (
                       <p className="text-xs text-muted-foreground">
-                        Vol: {(trade.volume / 1000).toFixed(2)}K
+                        Vol: {formatNumber(trade.volume / 1000)}K
                       </p>
                     )}
                   </div>
@@ -111,5 +112,6 @@ export function TradeFeed({ trades, maxTrades = 100 }: TradeFeedProps) {
     </Card>
   );
 }
+
 
 

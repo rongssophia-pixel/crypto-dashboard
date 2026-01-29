@@ -18,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDateTime } from '@/lib/time';
+import { formatPrice, formatNumber, formatPercentage } from '@/lib/utils';
 import { Download } from 'lucide-react';
 
 interface MarketDataRow {
@@ -161,19 +162,19 @@ export function MarketDataTable({
                   </TableCell>
                   <TableCell className="font-medium">{row.symbol}</TableCell>
                   <TableCell className="text-right font-mono">
-                    ${row.price.toFixed(2)}
+                    {formatPrice(row.price)}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {(row.volume / 1000).toFixed(2)}K
+                    {formatNumber(row.volume / 1000)}K
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {row.bid ? `$${row.bid.toFixed(2)}` : '-'}
+                    {row.bid ? formatPrice(row.bid) : '-'}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {row.ask ? `$${row.ask.toFixed(2)}` : '-'}
+                    {row.ask ? formatPrice(row.ask) : '-'}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {row.spread !== undefined ? `${row.spread.toFixed(4)}%` : '-'}
+                    {row.spread !== undefined ? formatPercentage(row.spread) : '-'}
                   </TableCell>
                 </TableRow>
               ))}
@@ -209,5 +210,6 @@ export function MarketDataTable({
     </Card>
   );
 }
+
 
 

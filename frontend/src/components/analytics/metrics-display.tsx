@@ -8,6 +8,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp, TrendingDown, Activity, DollarSign } from 'lucide-react';
+import { formatPrice, formatNumber } from '@/lib/utils';
 
 interface MetricsData {
   averagePrice: number;
@@ -81,20 +82,20 @@ export function MetricsDisplay({
   const metrics = [
     {
       title: 'Average Price',
-      value: `$${data.averagePrice.toFixed(2)}`,
+      value: formatPrice(data.averagePrice),
       icon: DollarSign,
       description: 'Mean price',
     },
     {
       title: 'High',
-      value: `$${data.high.toFixed(2)}`,
+      value: formatPrice(data.high),
       icon: TrendingUp,
       description: 'Highest price',
       color: 'text-green-600 dark:text-green-400',
     },
     {
       title: 'Low',
-      value: `$${data.low.toFixed(2)}`,
+      value: formatPrice(data.low),
       icon: TrendingDown,
       description: 'Lowest price',
       color: 'text-red-600 dark:text-red-400',
@@ -102,14 +103,14 @@ export function MetricsDisplay({
     {
       title: 'Volatility',
       value: data.priceVolatility > 0 
-        ? `$${data.priceVolatility.toFixed(2)}` 
-        : '$0.00',
+        ? formatPrice(data.priceVolatility)
+        : '$0',
       icon: Activity,
       description: 'Price std dev',
     },
     {
       title: 'Total Volume',
-      value: `${(data.totalVolume / 1000000).toFixed(2)}M`,
+      value: `${formatNumber(data.totalVolume / 1000000)}M`,
       icon: DollarSign,
       description: 'Aggregated volume',
     },
@@ -155,5 +156,6 @@ export function MetricsDisplay({
     </div>
   );
 }
+
 
 

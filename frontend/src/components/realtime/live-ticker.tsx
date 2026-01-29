@@ -8,7 +8,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatPrice, formatNumber } from '@/lib/utils';
 
 interface TickerData {
   symbol: string;
@@ -72,12 +72,12 @@ export function LiveTicker({ data, isConnected }: LiveTickerProps) {
                       ) : (
                         <TrendingDown className="h-3 w-3" />
                       )}
-                      {Math.abs(item.change).toFixed(2)}%
+                      {formatNumber(Math.abs(item.change))}%
                     </Badge>
                   )}
                 </div>
                 <div className="text-2xl font-bold font-mono">
-                  ${item.price.toFixed(2)}
+                  {formatPrice(item.price)}
                 </div>
               </div>
             );
@@ -87,5 +87,6 @@ export function LiveTicker({ data, isConnected }: LiveTickerProps) {
     </Card>
   );
 }
+
 
 
