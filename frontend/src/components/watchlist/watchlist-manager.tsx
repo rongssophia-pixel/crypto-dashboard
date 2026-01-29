@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useWatchlist, useAddToWatchlist, useRemoveFromWatchlist } from '@/hooks/api/useWatchlist';
+import { useAvailableSymbols } from '@/hooks/api/useIngestion';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -27,34 +28,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const AVAILABLE_SYMBOLS = [
-  'BTCUSDT',
-  'ETHUSDT',
-  'BNBUSDT',
-  'ADAUSDT',
-  'DOGEUSDT',
-  'XRPUSDT',
-  'DOTUSDT',
-  'UNIUSDT',
-  'LINKUSDT',
-  'SOLUSDT',
-  'MATICUSDT',
-  'LTCUSDT',
-  'AVAXUSDT',
-  'ATOMUSDT',
-  'FILUSDT',
-];
-
 export function WatchlistManager() {
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const { data, isLoading } = useWatchlist();
+  const { symbols: allSymbols, isLoading: isLoadingSymbols } = useAvailableSymbols();
   const addMutation = useAddToWatchlist();
   const removeMutation = useRemoveFromWatchlist();
 
   const watchlistSymbols = data?.symbols || [];
   
   // Filter out symbols already in watchlist
-  const availableToAdd = AVAILABLE_SYMBOLS.filter(
+  const availableToAdd = allSymbols.filter(
     (symbol) => !watchlistSymbols.includes(symbol)
   );
 
@@ -87,6 +71,8 @@ export function WatchlistManager() {
     });
   };
 
+  const isLoadingData = isLoading || isLoadingSymbols;
+
   return (
     <Card className="border-0 shadow-none">
       <CardHeader className="px-0 pt-0">
@@ -97,9 +83,19 @@ export function WatchlistManager() {
       </CardHeader>
       <CardContent className="px-0 pb-0">
         <div className="flex gap-2 mb-6">
-          <Select value={selectedSymbol} onValueChange={setSelectedSymbol}>
+          <Select 
+            value={selectedSymbol} 
+            onValueChange={setSelectedSymbol}
+            disabled={isLoadingSymbols || availableToAdd.length === 0}
+          >
             <SelectTrigger className="w-full max-w-xs">
-              <SelectValue placeholder="Select a symbol to add" />
+              <SelectValue placeholder={
+                isLoadingSymbols 
+                  ? "Loading symbols..." 
+                  : availableToAdd.length === 0 
+                  ? "All symbols added" 
+                  : "Select a symbol to add"
+              } />
             </SelectTrigger>
             <SelectContent>
               {availableToAdd.length === 0 ? (
@@ -117,7 +113,7 @@ export function WatchlistManager() {
           </Select>
           <Button 
             onClick={handleAdd} 
-            disabled={addMutation.isPending || !selectedSymbol}
+            disabled={addMutation.isPending || !selectedSymbol || isLoadingSymbols}
           >
             {addMutation.isPending ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -128,7 +124,7 @@ export function WatchlistManager() {
           </Button>
         </div>
 
-        {isLoading ? (
+        {isLoadingData ? (
           <div className="flex justify-center p-4">
             <Loader2 className="w-6 h-6 animate-spin" />
           </div>
