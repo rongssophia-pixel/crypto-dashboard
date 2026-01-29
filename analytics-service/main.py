@@ -452,6 +452,34 @@ async def query_market_data(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@app.get("/api/v1/symbols/available")
+async def get_available_symbols():
+    """
+    Get all available symbols from ClickHouse
+    Returns distinct symbols that have data in the database
+    """
+    try:
+        if not app_state.clickhouse_repository:
+            raise HTTPException(status_code=503, detail="ClickHouse repository not initialized")
+        
+        with REQUEST_LATENCY.labels(method="get_available_symbols").time():
+            # Query distinct symbols from market_data table
+            query = "SELECT DISTINCT symbol FROM crypto_analytics.market_data ORDER BY symbol"
+            result = await app_state.clickhouse_repository.execute_query(query)
+            
+            symbols = [row['symbol'] for row in result]
+            
+        REQUEST_COUNT.labels(method="get_available_symbols", status="success").inc()
+        return {
+            "symbols": symbols,
+            "count": len(symbols)
+        }
+    except Exception as e:
+        REQUEST_COUNT.labels(method="get_available_symbols", status="error").inc()
+        logger.error(f"Error in get_available_symbols: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 # ========================================
 # RUN THE APP
 # ========================================

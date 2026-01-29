@@ -13,6 +13,11 @@ interface IngestionStatusResponse {
   is_running: boolean;
 }
 
+interface AvailableSymbolsResponse {
+  symbols: string[];
+  count: number;
+}
+
 /**
  * Get ingestion service status including all available symbols
  */
@@ -29,15 +34,22 @@ export function useIngestionStatus() {
 
 /**
  * Get available symbols for watchlist selection
- * This fetches the list of symbols currently being ingested
+ * Fetches distinct symbols from ClickHouse database
  */
 export function useAvailableSymbols() {
-  const { data, isLoading, error } = useIngestionStatus();
-  
-  return {
-    symbols: data?.symbols || [],
-    isLoading,
-    error,
-  };
+  return useQuery<AvailableSymbolsResponse>({
+    queryKey: ['available-symbols'],
+    queryFn: async () => {
+      return apiClient.get<AvailableSymbolsResponse>('/api/v1/analytics/symbols/available');
+    },
+    refetchInterval: 300000, // Refetch every 5 minutes
+    staleTime: 60000, // Consider data fresh for 1 minute
+    select: (data) => ({
+      symbols: data.symbols,
+      count: data.count,
+      isLoading: false,
+      error: null,
+    }),
+  });
 }
 

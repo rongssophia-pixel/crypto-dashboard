@@ -31,11 +31,12 @@ import {
 export function WatchlistManager() {
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const { data, isLoading } = useWatchlist();
-  const { symbols: allSymbols, isLoading: isLoadingSymbols } = useAvailableSymbols();
+  const { data: symbolsData, isLoading: isLoadingSymbols } = useAvailableSymbols();
   const addMutation = useAddToWatchlist();
   const removeMutation = useRemoveFromWatchlist();
 
   const watchlistSymbols = data?.symbols || [];
+  const allSymbols = symbolsData?.symbols || [];
   
   // Filter out symbols already in watchlist
   const availableToAdd = allSymbols.filter(

@@ -437,3 +437,26 @@ async def get_candles(
         limit=limit,
     )
     return await query_candles(query)
+
+
+@router.get("/symbols/available")
+async def get_available_symbols():
+    """
+    Get all available symbols from ClickHouse
+    Returns distinct symbols that have data in the database
+    """
+    try:
+        url = f"http://{settings.analytics_service_host}:{settings.analytics_service_http_port}/api/v1/symbols/available"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    error_text = await response.text()
+                    logger.error(f"Error fetching symbols from analytics: {response.status} - {error_text}")
+                    raise HTTPException(status_code=response.status, detail="Error fetching available symbols")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_available_symbols: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
