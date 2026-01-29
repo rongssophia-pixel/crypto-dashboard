@@ -459,15 +459,20 @@ async def get_available_symbols():
     Returns distinct symbols that have data in the database
     """
     try:
-        if not app_state.clickhouse_repository:
+        if not app_state.clickhouse_repository or not app_state.clickhouse_repository.client:
             raise HTTPException(status_code=503, detail="ClickHouse repository not initialized")
         
         with REQUEST_LATENCY.labels(method="get_available_symbols").time():
             # Query distinct symbols from market_data table
-            query = "SELECT DISTINCT symbol FROM crypto_analytics.market_data ORDER BY symbol"
-            result = await app_state.clickhouse_repository.execute_query(query)
+            query = "SELECT DISTINCT symbol FROM market_data ORDER BY symbol"
             
-            symbols = [row['symbol'] for row in result]
+            # Use asyncio.to_thread since the ClickHouse client is synchronous
+            rows = await asyncio.to_thread(
+                app_state.clickhouse_repository.client.execute,
+                query
+            )
+            
+            symbols = [row[0] for row in rows]
             
         REQUEST_COUNT.labels(method="get_available_symbols", status="success").inc()
         return {
