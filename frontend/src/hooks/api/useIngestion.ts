@@ -44,12 +44,6 @@ export function useAvailableSymbols() {
     },
     refetchInterval: 300000, // Refetch every 5 minutes
     staleTime: 60000, // Consider data fresh for 1 minute
-    select: (data) => ({
-      symbols: data.symbols,
-      count: data.count,
-      isLoading: false,
-      error: null,
-    }),
   });
 }
 
