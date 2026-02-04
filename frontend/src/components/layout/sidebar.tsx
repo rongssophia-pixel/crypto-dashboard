@@ -11,7 +11,6 @@ import {
   BarChart3, 
   User,
   LogOut,
-  TrendingUp,
   Archive
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,9 +32,8 @@ export function Sidebar() {
     <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
       {/* Logo */}
       <div className="flex items-center gap-2 p-6 border-b border-slate-200 dark:border-slate-800">
-        <TrendingUp className="h-8 w-8 text-blue-600" />
         <div>
-          <h1 className="font-bold text-lg">Crypto Analytics</h1>
+          <h1 className="font-bold text-lg">Crypto Depth</h1>
           <p className="text-xs text-slate-500">Market Data Platform</p>
         </div>
       </div>
