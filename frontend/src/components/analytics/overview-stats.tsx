@@ -1,4 +1,3 @@
-import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TickerData } from '@/hooks/api/usePriceData';
 import { formatNumber } from '@/lib/utils';

@@ -24,7 +24,7 @@ import { subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Plus, ArrowUp, ArrowDown } from 'lucide-react';
-import { cn, formatNumber } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 import { OverviewStats } from '@/components/analytics/overview-stats';
@@ -80,7 +80,7 @@ function AnalyticsContent() {
   const { isConnected: isPriceConnected } = useRealtimePrice(selectedSymbol);
 
   // Orderbook (Always subscribe in this dashboard view)
-  const { book: orderbookBook, status: orderbookStatus, error: orderbookError } =
+  const { book: orderbookBook, error: orderbookError } =
     useRealtimeOrderbook(selectedSymbol);
 
   // Fetch ticker data for selected symbol

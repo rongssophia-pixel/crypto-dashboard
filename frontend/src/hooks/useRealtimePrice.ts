@@ -52,8 +52,6 @@ export function useRealtimePrice(symbol: string) {
               price_change_pct_24h: data.price_change_pct_24h ?? oldData.price_change_pct_24h,
               bid_price: data.bid_price ?? oldData.bid_price,
               ask_price: data.ask_price ?? oldData.ask_price,
-              bid_volume: data.bid_volume ?? oldData.bid_volume,
-              ask_volume: data.ask_volume ?? oldData.ask_volume,
               timestamp: new Date().toISOString()
             };
           });

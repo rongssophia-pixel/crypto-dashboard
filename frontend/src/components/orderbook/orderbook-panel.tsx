@@ -83,8 +83,8 @@ export function OrderbookPanel({
   const { bids, asks, bestBid, bestAsk, bidPct, askPct, bidRows, askRows } = useMemo(() => {
     const bids = topBids(book?.bids || [], levels);
     const asks = topAsks(book?.asks || [], levels);
-    const bestBid = bids.length ? bids[0][0] : null;
-    const bestAsk = asks.length ? asks[0][0] : null;
+    const bestBid = bids[0]?.[0] ?? null;
+    const bestAsk = asks[0]?.[0] ?? null;
 
     const bidNotional = sumNotional(bids);
     const askNotional = sumNotional(asks);
