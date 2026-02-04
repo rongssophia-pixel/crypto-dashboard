@@ -154,6 +154,46 @@ class BinanceConnector:
         logger.info(f"Started kline stream for {symbols} ({interval}): {connection_id}")
         return connection_id
 
+    async def start_partial_book_stream(
+        self,
+        symbol: str,
+        levels: int,
+        speed_ms: int,
+        callback: Callable[[Dict[str, Any]], None],
+    ) -> str:
+        """
+        Start WebSocket stream for Binance partial orderbook (top N levels snapshot updates).
+
+        Stream name format:
+          - <symbol>@depth<levels>@<speed>ms
+        Example:
+          - btcusdt@depth20@100ms
+        """
+        connection_id = str(uuid.uuid4())
+
+        symbol_lower = symbol.lower()
+        url = f"{self.websocket_url}/ws/{symbol_lower}@depth{levels}@{speed_ms}ms"
+
+        async def _orderbook_callback(raw: Dict[str, Any]):
+            normalized = self._normalize_orderbook_data(
+                raw, symbol_hint=symbol.upper(), levels=levels
+            )
+            if asyncio.iscoroutinefunction(callback):
+                await callback(normalized)
+            else:
+                callback(normalized)
+
+        task = asyncio.create_task(
+            # Use passthrough and normalize with symbol_hint (partial book stream payload lacks symbol)
+            self._websocket_handler(url, _orderbook_callback, connection_id, "passthrough")
+        )
+        self.active_connections[connection_id] = task
+
+        logger.info(
+            f"Started partial book stream for {symbol} (levels={levels}, speed_ms={speed_ms}): {connection_id}"
+        )
+        return connection_id
+
     async def stop_stream(self, connection_id: str) -> bool:
         """
         Stop an active WebSocket stream
@@ -397,6 +437,75 @@ class BinanceConnector:
             "exchange": "binance",
         }
 
+    def _normalize_orderbook_data(
+        self, raw_data: Dict[str, Any], *, symbol_hint: Optional[str] = None, levels: int = 20
+    ) -> Dict[str, Any]:
+        """
+        Normalize Binance partial book depth stream data to canonical orderbook snapshot schema.
+
+        Binance can deliver:
+          - partial book: { lastUpdateId, bids, asks }
+          - diff depth: { e, E, s, b, a, u, ... }
+          - combined wrapper: { stream, data: {...} }
+        We treat each message as a top-N snapshot suitable for UI replacement.
+        """
+        inner = raw_data.get("data", raw_data)
+
+        # Determine symbol
+        symbol = (
+            symbol_hint
+            or inner.get("s")
+            or self._symbol_from_stream_name(raw_data.get("stream", ""))
+        )
+
+        # Extract levels (support multiple formats)
+        bids_raw = inner.get("bids") or inner.get("b") or []
+        asks_raw = inner.get("asks") or inner.get("a") or []
+
+        def _parse_levels(side: list) -> list[list[float]]:
+            out: list[list[float]] = []
+            for lvl in side:
+                if not isinstance(lvl, (list, tuple)) or len(lvl) < 2:
+                    continue
+                try:
+                    price = float(lvl[0])
+                    size = float(lvl[1])
+                except Exception:
+                    continue
+                out.append([price, size])
+            return out
+
+        bids = _parse_levels(bids_raw)
+        asks = _parse_levels(asks_raw)
+
+        # Prefer event-time when present, otherwise fallback to now
+        ts = inner.get("E") or inner.get("eventTime") or int(
+            datetime.now(timezone.utc).timestamp() * 1000
+        )
+
+        # lastUpdateId for partial book; u for diff depth
+        last_update_id = inner.get("lastUpdateId") or inner.get("u")
+
+        return {
+            "type": "orderbook",
+            "symbol": symbol,
+            "exchange": "binance",
+            "timestamp": ts,
+            "levels": levels,
+            "bids": bids,
+            "asks": asks,
+            "last_update_id": last_update_id,
+        }
+
+    def _symbol_from_stream_name(self, stream_name: str) -> Optional[str]:
+        """
+        Parse symbol from combined stream name like 'btcusdt@depth20@100ms'.
+        Returns uppercased symbol when possible.
+        """
+        if not stream_name or "@" not in stream_name:
+            return None
+        return stream_name.split("@", 1)[0].upper()
+
     async def _websocket_handler(
         self,
         url: str,
@@ -455,6 +564,9 @@ class BinanceConnector:
                                 normalized = self._normalize_trade_data(data)
                             elif stream_type == "kline":
                                 normalized = self._normalize_kline_data(data)
+                            elif stream_type == "orderbook":
+                                # Keep orderbook normalization lightweight; symbol may be provided by stream wrapper
+                                normalized = self._normalize_orderbook_data(data)
                             elif stream_type == "combined":
                                 # For combined streams, pass raw data to callback
                                 # Callback will route based on stream name

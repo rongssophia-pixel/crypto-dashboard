@@ -12,7 +12,8 @@ import {
   User,
   LogOut,
   TrendingUp,
-  Archive
+  Archive,
+  Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,6 +22,7 @@ import { cn } from '@/lib/utils';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Depth', href: '/depth', icon: Layers },
   { name: 'Archives', href: '/archives', icon: Archive },
   { name: 'Profile', href: '/profile', icon: User },
 ];

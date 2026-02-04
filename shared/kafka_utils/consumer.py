@@ -5,6 +5,7 @@ Provides a simplified interface for consuming messages from Kafka topics
 
 import json
 import logging
+import time
 from typing import Any, Callable, Dict, List, Optional
 
 from confluent_kafka import Consumer, KafkaError, KafkaException
@@ -81,6 +82,13 @@ class KafkaConsumerWrapper:
                 if msg.error():
                     if msg.error().code() == KafkaError._PARTITION_EOF:
                         # End of partition, not an error
+                        continue
+                    elif msg.error().code() == KafkaError.UNKNOWN_TOPIC_OR_PART:
+                        # Topic may not exist yet (e.g., new feature rollout); keep consumer alive and retry.
+                        logger.warning(
+                            f"Subscribed topic not available yet: {msg.error()} (will retry)"
+                        )
+                        time.sleep(2)
                         continue
                     else:
                         logger.error(f"Consumer error: {msg.error()}")

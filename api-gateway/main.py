@@ -16,9 +16,12 @@ import time
 from contextlib import asynccontextmanager
 
 from api import analytics, auth, ingestion, storage, websocket, watchlist
+from api import orderbook_websocket
 from config import settings
 from services.websocket_manager import ConnectionManager
 from services.kafka_consumer_service import WebSocketKafkaConsumer
+from services.orderbook_connection_manager import OrderbookConnectionManager
+from services.orderbook_kafka_consumer_service import OrderbookWebSocketKafkaConsumer
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -119,10 +122,16 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing WebSocket components...")
     connection_manager = ConnectionManager.get_instance()
     kafka_consumer = WebSocketKafkaConsumer(connection_manager)
+
+    # Orderbook WebSocket components (dedicated endpoint)
+    orderbook_manager = OrderbookConnectionManager()
+    orderbook_kafka_consumer = OrderbookWebSocketKafkaConsumer(orderbook_manager)
     
     # Store in app state
     app.state.ws_manager = connection_manager
     app.state.kafka_consumer = kafka_consumer
+    app.state.orderbook_ws_manager = orderbook_manager
+    app.state.orderbook_kafka_consumer = orderbook_kafka_consumer
     
     # Start Kafka consumer in background (don't block app startup)
     async def start_kafka_in_background():
@@ -138,10 +147,24 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Failed to start Kafka consumer: {e}", exc_info=True)
             logger.warning("WebSocket will run without Kafka streaming")
+
+    async def start_orderbook_kafka_in_background():
+        try:
+            await orderbook_kafka_consumer.start()
+            logger.info("Orderbook Kafka consumer started successfully")
+
+            ob_consume_task = asyncio.create_task(orderbook_kafka_consumer.consume_loop())
+            app.state.orderbook_consume_task = ob_consume_task
+            logger.info("Orderbook Kafka consume loop started")
+        except Exception as e:
+            logger.error(f"Failed to start orderbook Kafka consumer: {e}", exc_info=True)
+            logger.warning("Orderbook WebSocket will run without Kafka streaming")
     
     # Start Kafka consumer without blocking app startup
     asyncio.create_task(start_kafka_in_background())
     logger.info("Kafka consumer initialization started in background")
+    asyncio.create_task(start_orderbook_kafka_in_background())
+    logger.info("Orderbook Kafka consumer initialization started in background")
     
     logger.info("============================================================")
     logger.info(f"✅ {settings.service_name} is ready!")
@@ -166,12 +189,20 @@ async def lifespan(app: FastAPI):
     # Stop Kafka consumer
     if hasattr(app.state, "kafka_consumer"):
         await app.state.kafka_consumer.stop()
+    if hasattr(app.state, "orderbook_kafka_consumer"):
+        await app.state.orderbook_kafka_consumer.stop()
     
     # Cancel consume task
     if hasattr(app.state, "consume_task"):
         app.state.consume_task.cancel()
         try:
             await app.state.consume_task
+        except asyncio.CancelledError:
+            pass
+    if hasattr(app.state, "orderbook_consume_task"):
+        app.state.orderbook_consume_task.cancel()
+        try:
+            await app.state.orderbook_consume_task
         except asyncio.CancelledError:
             pass
 
@@ -246,6 +277,7 @@ app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytic
 app.include_router(storage.router, prefix="/api/v1/storage", tags=["Storage"])
 app.include_router(watchlist.router, prefix="/api/v1/watchlist", tags=["Watchlist"])
 app.include_router(websocket.router, tags=["WebSocket"])
+app.include_router(orderbook_websocket.router, tags=["OrderbookWebSocket"])
 # app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["Notifications"])
 
 

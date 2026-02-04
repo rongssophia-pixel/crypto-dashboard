@@ -21,6 +21,7 @@ from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from config import settings
 from services.ingestion_service import IngestionBusinessService
+from services.orderbook_ingestion_service import OrderbookIngestionService
 from repositories.kafka_repository import KafkaRepository
 from connectors.binance_connector import BinanceConnector
 from shared.kafka_utils.producer import KafkaProducerWrapper
@@ -43,6 +44,7 @@ class AppState:
     
     # Business service
     ingestion_service: IngestionBusinessService = None
+    orderbook_ingestion_service: OrderbookIngestionService = None
 
 
 app_state = AppState()
@@ -95,6 +97,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             binance_connector=app_state.binance_connector,
         )
         logger.info("✅ Ingestion business service initialized")
+
+        # 4b. Initialize subscription-driven orderbook ingestion service
+        logger.info("Initializing orderbook ingestion service...")
+        app_state.orderbook_ingestion_service = OrderbookIngestionService(
+            kafka_repository=app_state.kafka_repository,
+            binance_connector=app_state.binance_connector,
+        )
+        logger.info("✅ Orderbook ingestion service initialized")
         
         # 5. Start automatic ingestion if enabled
         if settings.auto_start_ingestion:
@@ -264,8 +274,44 @@ async def get_status():
     Get detailed ingestion status
     """
     if app_state.ingestion_service:
-        return app_state.ingestion_service.get_status()
-    return {"error": "Service not initialized"}
+        status = app_state.ingestion_service.get_status()
+    else:
+        status = {"error": "Service not initialized"}
+
+    # Add orderbook ingestion status if available
+    if app_state.orderbook_ingestion_service:
+        status["orderbook"] = app_state.orderbook_ingestion_service.get_status()
+    return status
+
+
+from pydantic import BaseModel
+
+
+class OrderbookInterestRequest(BaseModel):
+    symbol: str
+    action: str  # add | remove
+
+
+@app.post("/orderbook/interest")
+async def orderbook_interest(req: OrderbookInterestRequest):
+    """
+    Control plane endpoint for API Gateway:
+      - action=add: start/retain orderbook ingestion for symbol
+      - action=remove: stop orderbook ingestion when no viewers remain
+    """
+    if not app_state.orderbook_ingestion_service:
+        return {"success": False, "error": "Orderbook ingestion not initialized"}
+    return await app_state.orderbook_ingestion_service.set_interest(
+        symbol=req.symbol, action=req.action
+    )
+
+
+@app.get("/orderbook/interest")
+async def orderbook_interest_status():
+    """Debug endpoint to inspect current orderbook interest/refcounts."""
+    if not app_state.orderbook_ingestion_service:
+        return {"success": False, "error": "Orderbook ingestion not initialized"}
+    return {"success": True, **app_state.orderbook_ingestion_service.get_status()}
 
 
 # ========================================

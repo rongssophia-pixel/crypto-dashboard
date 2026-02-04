@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # Docker deployment: override with KAFKA_BOOTSTRAP_SERVERS=kafka:19092
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_topic_raw_market_data: str = "crypto.raw.market-data"
+    kafka_topic_raw_orderbook: str = "crypto.raw.orderbook"
     kafka_security_protocol: str = "PLAINTEXT"
     kafka_sasl_mechanism: Optional[str] = None
     kafka_sasl_username: Optional[str] = None
@@ -46,6 +47,11 @@ class Settings(BaseSettings):
     symbol_filter_quote_currency: str = "USDT"
     max_symbols_per_connection: int = 50  # Reduced to avoid HTTP 414 (URI too long)
     symbol_refresh_interval_hours: int = 24
+
+    # Orderbook ingestion (subscription-driven via API Gateway)
+    orderbook_levels: int = 20
+    # Binance supports 100ms and 1000ms updates for partial book depth
+    orderbook_update_speed_ms: int = 100
     
     # JWT configuration (kept for compatibility)
     jwt_secret_key: str = "change-me-in-production"

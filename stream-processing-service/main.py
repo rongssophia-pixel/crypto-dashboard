@@ -20,7 +20,9 @@ from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from config import settings
 from shared.kafka_utils import KafkaConsumerWrapper
+from shared.kafka_utils.producer import KafkaProducerWrapper
 from sinks.clickhouse_sink import ClickHouseSink
+from producers.processed_kafka_producer import ProcessedKafkaProducer
 from services.job_manager import JobManager
 
 logging.basicConfig(
@@ -34,6 +36,7 @@ class AppState:
     """Centralized application state container"""
     # Infrastructure
     kafka_consumer: KafkaConsumerWrapper = None
+    kafka_producer: KafkaProducerWrapper = None
     clickhouse_sink: ClickHouseSink = None
     
     # Services
@@ -74,7 +77,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         # 2. Initialize Kafka consumer
         logger.info("Initializing Kafka consumer...")
         app_state.kafka_consumer = KafkaConsumerWrapper(
-            topics=[settings.kafka_topic_raw_market_data],
+            topics=[settings.kafka_topic_raw_market_data, settings.kafka_topic_raw_orderbook],
             bootstrap_servers=settings.kafka_bootstrap_servers,
             group_id=settings.kafka_consumer_group,
             auto_offset_reset="earliest",  # Changed from "latest" to process all messages
@@ -84,12 +87,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             sasl_plain_password=settings.kafka_sasl_password,
         )
         logger.info("✅ Kafka consumer initialized")
+
+        # 2b. Initialize Kafka producer (for processed outputs)
+        logger.info("Initializing Kafka producer...")
+        app_state.kafka_producer = KafkaProducerWrapper(
+            bootstrap_servers=settings.kafka_bootstrap_servers,
+            client_id=f"{settings.service_name}-producer",
+            security_protocol=settings.kafka_security_protocol,
+            sasl_mechanism=settings.kafka_sasl_mechanism,
+            sasl_plain_username=settings.kafka_sasl_username,
+            sasl_plain_password=settings.kafka_sasl_password,
+        )
+        logger.info("✅ Kafka producer initialized")
         
         # 3. Initialize Job Manager
         logger.info("Initializing Job Manager...")
+        processed_producer = ProcessedKafkaProducer(app_state.kafka_producer)
         app_state.job_manager = JobManager(
             kafka_consumer=app_state.kafka_consumer,
             clickhouse_sink=app_state.clickhouse_sink,
+            processed_producer=processed_producer,
             candle_intervals=settings.candle_interval_list,
         )
         logger.info("✅ Job Manager initialized")

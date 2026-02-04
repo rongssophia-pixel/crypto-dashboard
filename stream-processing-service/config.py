@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     kafka_consumer_group: str = "stream-processing-group"
     kafka_topic_raw_market_data: str = "crypto.raw.market-data"
     kafka_topic_processed_market_data: str = "crypto.processed.market-data"
+    kafka_topic_raw_orderbook: str = "crypto.raw.orderbook"
+    kafka_topic_processed_orderbook: str = "crypto.processed.orderbook"
     kafka_topic_alerts: str = "crypto.alerts"
     kafka_security_protocol: str = "PLAINTEXT"
     kafka_sasl_mechanism: Optional[str] = None
@@ -67,6 +69,10 @@ class Settings(BaseSettings):
     candle_intervals: str = "1m,5m,15m,1h"  # Comma-separated
     batch_size: int = 100
     flush_interval_seconds: int = 5
+
+    # Orderbook processing
+    orderbook_levels: int = 20
+    orderbook_max_updates_per_sec: int = 5
     
     # PostgreSQL (for alert subscriptions - optional)
     postgres_host: Optional[str] = None

@@ -13,9 +13,12 @@ from typing import Any, Dict, List, Optional
 sys.path.insert(0, "/app")
 
 from shared.kafka_utils import KafkaConsumerWrapper
+from shared.kafka_utils.producer import KafkaProducerWrapper
 from sinks.clickhouse_sink import ClickHouseSink
 from jobs.enrichment_job import EnrichmentJob
 from jobs.candle_aggregation_job import CandleAggregationJob
+from jobs.orderbook_job import OrderbookJob
+from producers.processed_kafka_producer import ProcessedKafkaProducer
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,7 @@ class JobManager:
         self,
         kafka_consumer: KafkaConsumerWrapper,
         clickhouse_sink: ClickHouseSink,
+        processed_producer: ProcessedKafkaProducer,
         candle_intervals: List[str],
     ):
         """
@@ -45,6 +49,7 @@ class JobManager:
         """
         self.kafka_consumer = kafka_consumer
         self.clickhouse_sink = clickhouse_sink
+        self.processed_producer = processed_producer
         
         # Initialize jobs
         self.enrichment_job = EnrichmentJob(
@@ -54,6 +59,10 @@ class JobManager:
         self.candle_job = CandleAggregationJob(
             intervals=candle_intervals,
             output_handler=self._on_candle_complete
+        )
+
+        self.orderbook_job = OrderbookJob(
+            output_handler=self._on_orderbook_processed
         )
         
         self._running = False
@@ -71,6 +80,7 @@ class JobManager:
         # Start jobs
         await self.enrichment_job.start()
         await self.candle_job.start()
+        await self.orderbook_job.start()
         
         self._running = True
         self._loop = asyncio.get_event_loop()
@@ -104,6 +114,7 @@ class JobManager:
         
         # Stop jobs (they may emit remaining data)
         await self.candle_job.stop()
+        await self.orderbook_job.stop()
         await self.enrichment_job.stop()
         
         # Final flush of sink
@@ -167,6 +178,9 @@ class JobManager:
                 enriched = await self.enrichment_job.process(data)
                 await self._on_enriched_data(enriched)
                 
+            elif data_type == "orderbook":
+                logger.debug(f"Processing orderbook data: {data.get('symbol')}")
+                await self.orderbook_job.process(data)
             else:
                 # Legacy path: trade/tick data that needs aggregation
                 logger.debug(f"Processing legacy data type: {data_type}")
@@ -189,6 +203,16 @@ class JobManager:
         Writes to ClickHouse market_candles table
         """
         await self.clickhouse_sink.write_candle(candle)
+
+    async def _on_orderbook_processed(self, book: Dict[str, Any]):
+        """
+        Callback when an orderbook snapshot is processed.
+        Publishes to Kafka crypto.processed.orderbook for API Gateway WS fanout.
+        """
+        try:
+            self.processed_producer.publish_orderbook(book)
+        except Exception as e:
+            logger.error(f"Failed to publish processed orderbook: {e}", exc_info=True)
     
     def get_stats(self) -> Dict[str, Any]:
         """Get comprehensive job statistics"""
@@ -200,6 +224,7 @@ class JobManager:
             },
             "enrichment": self.enrichment_job.get_stats(),
             "candle_aggregation": self.candle_job.get_stats(),
+            "orderbook": self.orderbook_job.get_stats(),
             "clickhouse_sink": self.clickhouse_sink.get_stats(),
         }
     

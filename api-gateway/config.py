@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     # Kafka configuration
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_topic_processed_market_data: str = "crypto.processed.market-data"
+    kafka_topic_processed_orderbook: str = "crypto.processed.orderbook"
     kafka_consumer_group: str = "api-gateway-websocket-group"
     kafka_security_protocol: str = "PLAINTEXT"
     kafka_sasl_mechanism: Optional[str] = None
