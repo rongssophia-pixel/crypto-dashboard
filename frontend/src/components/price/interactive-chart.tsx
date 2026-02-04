@@ -103,51 +103,77 @@ export function InteractiveChart({ symbol, range: controlledRange, onRangeChange
   const EmptyTooltip = () => null;
 
   return (
-    <Card className="border-none shadow-none bg-transparent">
-      <CardHeader className="px-0 pt-0 pb-4">
+    <Card className="border-none shadow-none bg-transparent h-full flex flex-col">
+      <CardHeader className="px-0 pt-0 pb-2 shrink-0 border-b border-slate-800/60 mb-2">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 no-scrollbar">
+          <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 no-scrollbar">
             {RANGES.map((r) => (
               <Button
                 key={r}
                 variant={range === r ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setRange(r)}
-                className="rounded-full px-3 h-7 text-xs font-medium"
+                className={`rounded-md px-3 h-8 text-xs font-medium transition-all ${
+                  range === r 
+                    ? "bg-slate-800 text-slate-100 shadow-sm" 
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                }`}
               >
                 {r}
               </Button>
             ))}
+            <div className="w-px h-4 bg-slate-800 mx-2" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-200" onClick={() => {}}>
+               <span className="sr-only">Calendar</span>
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+            </Button>
           </div>
           
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setChartType(chartType === 'line' ? 'candle' : 'line')}>
-                {/* Toggle icon based on type */}
-               <span className="text-xs font-bold">{chartType === 'line' ? 'Line' : 'Candle'}</span>
+          <div className="flex items-center gap-1">
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                className={`h-8 px-2 text-xs font-medium gap-2 ${chartType === 'line' ? 'bg-slate-800/50 text-slate-200' : 'text-slate-400'}`}
+                onClick={() => setChartType('line')}
+            >
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+               <span className="hidden sm:inline">Line</span>
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                className={`h-8 px-2 text-xs font-medium gap-2 ${chartType === 'candle' ? 'bg-slate-800/50 text-slate-200' : 'text-slate-400'}`}
+                onClick={() => setChartType('candle')}
+            >
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M17 3v18"/><path d="M7 3v18"/><rect width="8" height="8" x="3" y="8" rx="1"/><rect width="8" height="8" x="13" y="8" rx="1"/></svg>
+               <span className="hidden sm:inline">Candle</span>
+            </Button>
+            
+            <div className="w-px h-4 bg-slate-800 mx-2" />
+            
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-200">
               <Share2 className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-200">
               <Maximize2 className="w-4 h-4" />
             </Button>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="px-0">
+      <CardContent className="px-0 flex-1 min-h-0">
         {isLoading ? (
-           <Skeleton className="h-[400px] w-full" />
+           <Skeleton className="h-full w-full" />
         ) : error ? (
-           <div className="h-[400px] flex items-center justify-center text-muted-foreground">
+           <div className="h-full flex items-center justify-center text-muted-foreground">
              Failed to load chart data
            </div>
         ) : chartData.length === 0 ? (
-           <div className="h-[400px] flex items-center justify-center text-muted-foreground">
+           <div className="h-full flex items-center justify-center text-muted-foreground">
              No data available
            </div>
         ) : (
-          <div className="h-[450px] flex flex-col">
+          <div className="flex flex-col h-full">
             <div className="flex-1 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chartData}>
@@ -157,7 +183,7 @@ export function InteractiveChart({ symbol, range: controlledRange, onRangeChange
                       <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" opacity={0.2} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
                   <XAxis 
                     dataKey="displayTime" 
                     hide 
@@ -165,21 +191,21 @@ export function InteractiveChart({ symbol, range: controlledRange, onRangeChange
                   <YAxis 
                     orientation="right" 
                     domain={[minPrice - buffer, maxPrice + buffer]}
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: '#94a3b8' }}
                     axisLine={false}
                     tickLine={false}
                     width={50}
                     tickFormatter={(val) => formatNumber(val)}
                   />
-                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '4 4' }} />
                   
                   {chartType === 'line' ? (
                     <Area 
                       type="monotone" 
                       dataKey="close" 
                       stroke="#22c55e" 
-                      fillOpacity={1} 
                       fill="url(#colorPrice)" 
+                      fillOpacity={1}
                       strokeWidth={2}
                     />
                   ) : (
@@ -205,13 +231,13 @@ export function InteractiveChart({ symbol, range: controlledRange, onRangeChange
                 <BarChart data={chartData}>
                    <XAxis 
                       dataKey="displayTime" 
-                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fontSize: 10, fill: '#94a3b8' }}
                       axisLine={false}
                       tickLine={false}
                       minTickGap={50}
                    />
                    <Tooltip cursor={false} content={<EmptyTooltip />} />
-                   <Bar dataKey="volume" fill="hsl(var(--muted))" opacity={0.3} barSize={2} />
+                   <Bar dataKey="volume" fill="#94a3b8" opacity={0.3} barSize={2} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -52,6 +52,7 @@ export function useRealtimeOrderbook(symbol: string) {
     const handleOrderbook = (message: any) => {
       if (message.type === 'orderbook' && message.symbol) {
         setBook(message as OrderbookSnapshot);
+        setError(null);
       } else if (message.type === 'warning' && message.message) {
         setError(String(message.message));
       }

@@ -6,7 +6,6 @@
  */
 
 import { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -51,12 +50,14 @@ function mergeDepth(bids: DepthPoint[], asks: DepthPoint[]): DepthPoint[] {
   return all;
 }
 
-export function DepthChart({
-  symbol,
+export function DepthChartPlot({
   book,
+  height = 220,
+  theme = 'dark',
 }: {
-  symbol: string;
   book: OrderbookSnapshot | null;
+  height?: number | string;
+  theme?: 'dark' | 'light';
 }) {
   const data = useMemo(() => {
     const bids = book?.bids || [];
@@ -66,105 +67,92 @@ export function DepthChart({
     return mergeDepth(bidDepth, askDepth);
   }, [book]);
 
-  const bestBid = book?.bids?.length ? book.bids[0][0] : null;
-  const bestAsk = book?.asks?.length ? book.asks[0][0] : null;
   const hasLevels = Boolean((book?.bids?.length || 0) + (book?.asks?.length || 0));
 
+  const tickFill = theme === 'dark' ? '#94a3b8' : 'hsl(var(--muted-foreground))';
+  const gridStroke = theme === 'dark' ? '#334155' : 'hsl(var(--muted))';
+
+  if (!hasLevels) {
+    return (
+      <div style={{ height }} className="flex items-center justify-center text-sm text-slate-400">
+        Waiting for orderbook updates…
+      </div>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center justify-between">
-          <span>Depth Chart</span>
-          <span className="text-sm font-normal text-muted-foreground">{symbol}</span>
-        </CardTitle>
-        <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-          <span>
-            Best Bid:{' '}
-            <span className="font-mono text-foreground">
-              {bestBid ? formatNumber(bestBid) : '—'}
-            </span>
-          </span>
-          <span>
-            Best Ask:{' '}
-            <span className="font-mono text-foreground">
-              {bestAsk ? formatNumber(bestAsk) : '—'}
-            </span>
-          </span>
-          {book?.spread != null && (
-            <span>
-              Spread:{' '}
-              <span className="font-mono text-foreground">{formatNumber(book.spread)}</span>
-            </span>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        {!hasLevels ? (
-          <div className="h-[420px] flex items-center justify-center text-sm text-muted-foreground">
-            Waiting for orderbook updates…
-          </div>
-        ) : (
-          <div className="h-[420px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
-              <XAxis
-                dataKey="price"
-                type="number"
-                domain={['dataMin', 'dataMax']}
-                tickFormatter={(v) => formatNumber(v)}
-                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tickFormatter={(v) => formatNumber(v)}
-                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                axisLine={false}
-                tickLine={false}
-                width={60}
-              />
-              <Tooltip
-                formatter={(value: any, name: any) => [formatNumber(value), name]}
-                labelFormatter={(label: any) => `Price: ${formatNumber(label)}`}
-              />
+    <div style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.35} stroke={gridStroke} />
+          <XAxis
+            dataKey="price"
+            type="number"
+            domain={['dataMin', 'dataMax']}
+            tickFormatter={(v) => formatNumber(v)}
+            tick={{ fontSize: 11, fill: tickFill }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            tickFormatter={(v) => formatNumber(v)}
+            tick={{ fontSize: 11, fill: tickFill }}
+            axisLine={false}
+            tickLine={false}
+            width={56}
+          />
+          <Tooltip
+            formatter={(value: any, name: any) => [formatNumber(value), name]}
+            labelFormatter={(label: any) => `Price: ${formatNumber(label)}`}
+          />
 
-              <defs>
-                <linearGradient id="bidFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="askFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.22} />
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                </linearGradient>
-              </defs>
+          <defs>
+            <linearGradient id="bidFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#22c55e" stopOpacity={0.28} />
+              <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="askFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.24} />
+              <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+            </linearGradient>
+          </defs>
 
-              <Area
-                type="stepAfter"
-                dataKey="bidDepth"
-                name="Bid Depth"
-                stroke="#22c55e"
-                fill="url(#bidFill)"
-                strokeWidth={2}
-                connectNulls
-              />
-              <Area
-                type="stepAfter"
-                dataKey="askDepth"
-                name="Ask Depth"
-                stroke="#ef4444"
-                fill="url(#askFill)"
-                strokeWidth={2}
-                connectNulls
-              />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          <Area
+            type="stepAfter"
+            dataKey="bidDepth"
+            name="Bid"
+            stroke="#22c55e"
+            fill="url(#bidFill)"
+            strokeWidth={2}
+            connectNulls
+          />
+          <Area
+            type="stepAfter"
+            dataKey="askDepth"
+            name="Ask"
+            stroke="#ef4444"
+            fill="url(#askFill)"
+            strokeWidth={2}
+            connectNulls
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
+// Backward compatible wrapper (existing usage)
+export function DepthChart({ symbol, book }: { symbol: string; book: OrderbookSnapshot | null }) {
+  return (
+    <div className="rounded-xl border bg-background">
+      <div className="flex items-center justify-between px-4 py-3 border-b">
+        <div className="font-semibold">Depth Chart</div>
+        <div className="text-sm text-muted-foreground">{symbol}</div>
+      </div>
+      <div className="p-4">
+        <DepthChartPlot book={book} height={420} theme="light" />
+      </div>
+    </div>
+  );
+}
 
