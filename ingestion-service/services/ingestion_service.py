@@ -304,6 +304,7 @@ class IngestionBusinessService:
             "ask_price": float(data.get("a", 0)),
             "bid_volume": float(data.get("B", 0)),
             "ask_volume": float(data.get("A", 0)),
+            "open_24h": float(data.get("o", 0)),
             "high_24h": float(data.get("h", 0)),
             "low_24h": float(data.get("l", 0)),
             "volume_24h": float(data.get("v", 0)),

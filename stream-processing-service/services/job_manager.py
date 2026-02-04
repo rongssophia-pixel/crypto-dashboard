@@ -18,6 +18,7 @@ from sinks.clickhouse_sink import ClickHouseSink
 from jobs.enrichment_job import EnrichmentJob
 from jobs.candle_aggregation_job import CandleAggregationJob
 from jobs.orderbook_job import OrderbookJob
+from jobs.ticker_job import TickerJob
 from producers.processed_kafka_producer import ProcessedKafkaProducer
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,10 @@ class JobManager:
             output_handler=self._on_orderbook_processed
         )
         
+        self.ticker_job = TickerJob(
+            output_handler=self._on_ticker_processed
+        )
+        
         self._running = False
         self._message_count = 0
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="kafka-consumer")
@@ -81,6 +86,7 @@ class JobManager:
         await self.enrichment_job.start()
         await self.candle_job.start()
         await self.orderbook_job.start()
+        await self.ticker_job.start()
         
         self._running = True
         self._loop = asyncio.get_event_loop()
@@ -115,6 +121,7 @@ class JobManager:
         # Stop jobs (they may emit remaining data)
         await self.candle_job.stop()
         await self.orderbook_job.stop()
+        await self.ticker_job.stop()
         await self.enrichment_job.stop()
         
         # Final flush of sink
@@ -173,10 +180,11 @@ class JobManager:
                 await self._on_candle_complete(data)
                 
             elif data_type == "ticker":
-                # Ticker data has 24h stats - pass through directly
+                # Ticker data has 24h stats - enrich then throttle via ticker job
                 logger.debug(f"Processing ticker data: {data.get('symbol')}")
                 enriched = await self.enrichment_job.process(data)
-                await self._on_enriched_data(enriched)
+                # Route through ticker job for throttling and broadcast
+                await self.ticker_job.process(enriched)
                 
             elif data_type == "orderbook":
                 logger.debug(f"Processing orderbook data: {data.get('symbol')}")
@@ -214,6 +222,16 @@ class JobManager:
         except Exception as e:
             logger.error(f"Failed to publish processed orderbook: {e}", exc_info=True)
     
+    async def _on_ticker_processed(self, ticker: Dict[str, Any]):
+        """
+        Callback when ticker data is processed (throttled).
+        Publishes to Kafka crypto.processed.market-data for API Gateway WS fanout.
+        """
+        try:
+            self.processed_producer.publish_market_data(ticker)
+        except Exception as e:
+            logger.error(f"Failed to publish processed ticker: {e}", exc_info=True)
+    
     def get_stats(self) -> Dict[str, Any]:
         """Get comprehensive job statistics"""
         return {
@@ -225,6 +243,7 @@ class JobManager:
             "enrichment": self.enrichment_job.get_stats(),
             "candle_aggregation": self.candle_job.get_stats(),
             "orderbook": self.orderbook_job.get_stats(),
+            "ticker": self.ticker_job.get_stats(),
             "clickhouse_sink": self.clickhouse_sink.get_stats(),
         }
     

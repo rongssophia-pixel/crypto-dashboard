@@ -167,6 +167,7 @@ function AnalyticsContent() {
   };
 
   const isPositive = (tickerData?.price_change_pct_24h || 0) >= 0;
+  const showLiveValues = isPriceConnected && !!tickerData;
 
   const coinInfo = getCoinInfo(selectedSymbol);
 
@@ -246,18 +247,28 @@ function AnalyticsContent() {
            {/* Big Price Display */}
            <div className="flex items-baseline gap-3 px-1">
              <span className="text-4xl font-mono font-bold tracking-tight text-foreground">
-               $<RollingNumber value={tickerData?.price || 0} decimals={2} />
+               {showLiveValues ? (
+                 <>
+                   $<RollingNumber value={tickerData?.price || 0} decimals={2} />
+                 </>
+               ) : (
+                 '--'
+               )}
              </span>
-             <div className={cn("flex items-center text-lg font-medium", isPositive ? "text-emerald-500" : "text-rose-500")}>
-                <span className="font-mono">
-                  {tickerData && (tickerData.price_change_24h || 0) > 0 ? '+' : ''}
-                  <RollingNumber value={tickerData?.price_change_24h || 0} prefix="$" decimals={2} />
-                </span>
-                <span className="ml-2 flex items-center">
-                  {isPositive ? <ArrowUp className="w-5 h-5 mr-1" /> : <ArrowDown className="w-5 h-5 mr-1" />}
-                  <RollingNumber value={Math.abs(tickerData?.price_change_pct_24h || 0)} suffix="%" decimals={2} />
-                </span>
-             </div>
+             {showLiveValues ? (
+               <div className={cn("flex items-center text-lg font-medium", isPositive ? "text-emerald-500" : "text-rose-500")}>
+                  <span className="font-mono">
+                    {tickerData && (tickerData.price_change_24h || 0) > 0 ? '+' : ''}
+                    <RollingNumber value={tickerData?.price_change_24h || 0} prefix="$" decimals={2} />
+                  </span>
+                  <span className="ml-2 flex items-center">
+                    {isPositive ? <ArrowUp className="w-5 h-5 mr-1" /> : <ArrowDown className="w-5 h-5 mr-1" />}
+                    <RollingNumber value={Math.abs(tickerData?.price_change_pct_24h || 0)} suffix="%" decimals={2} />
+                  </span>
+               </div>
+             ) : (
+               <span className="text-sm text-muted-foreground">WebSocket disconnected</span>
+             )}
              <span className="text-xs text-slate-500 ml-auto font-mono">
                {new Date().toUTCString()}
              </span>
@@ -271,7 +282,7 @@ function AnalyticsContent() {
            </div>
 
            {/* Stats Grid */}
-           <OverviewStats data={tickerData} isLoading={isTickerLoading} />
+           <OverviewStats data={tickerData} isLoading={isTickerLoading} isConnected={isPriceConnected} />
 
            <Separator />
 

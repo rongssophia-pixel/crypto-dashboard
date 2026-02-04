@@ -28,5 +28,24 @@ class ProcessedKafkaProducer:
             value=data,
             key=symbol,
         )
+    
+    def publish_market_data(self, data: Dict[str, Any], topic: Optional[str] = None):
+        """
+        Publish processed market data (ticker) to Kafka
+        
+        Args:
+            data: Processed ticker data
+            topic: Optional override topic
+        """
+        symbol = data.get("symbol")
+        if not symbol:
+            logger.warning("Skipping processed market data publish: missing symbol")
+            return
+        
+        self.producer.send(
+            topic=topic or settings.kafka_topic_processed_market_data,
+            value=data,
+            key=symbol,
+        )
 
 

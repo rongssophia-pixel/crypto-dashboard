@@ -6,14 +6,13 @@
  */
 
 import { useState } from 'react';
-import { DepthChart } from '@/components/orderbook/depth-chart';
 import { ConnectionStatus } from '@/components/realtime/connection-status';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useRealtimeOrderbook } from '@/hooks/useRealtimeOrderbook';
-import { formatNumber } from '@/lib/utils';
+import { OrderbookPanel } from '@/components/orderbook/orderbook-panel';
 import { toast } from 'sonner';
 
 const DEFAULT_SYMBOL = 'BTCUSDT';
@@ -41,14 +40,22 @@ export default function DepthPage() {
         <p className="text-muted-foreground">Live orderbook depth snapshots (top 20 levels)</p>
       </div>
 
-      <ConnectionStatus
-        status={status}
-        subscriptions={[symbol]}
-        onReconnect={() => {
-          // The hook will reconnect automatically when disconnected; keep UI simple.
-          toast.message('Reconnecting…');
-        }}
-      />
+      <details className="rounded-xl border bg-background">
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium">
+          Connection
+          <span className="ml-2 text-xs text-muted-foreground">(click to expand)</span>
+        </summary>
+        <div className="px-4 pb-4">
+          <ConnectionStatus
+            status={status}
+            subscriptions={[symbol]}
+            onReconnect={() => {
+              toast.message('Reconnecting…');
+            }}
+          />
+          {error && <div className="mt-3 text-sm text-red-600 dark:text-red-400">Error: {error}</div>}
+        </div>
+      </details>
 
       <Card>
         <CardHeader>
@@ -71,38 +78,7 @@ export default function DepthPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>Feed</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-1">
-          <div className="flex flex-wrap gap-x-6 gap-y-1">
-            <div>
-              Status: <span className="text-foreground">{status}</span>
-            </div>
-            <div>
-              Last snapshot:{' '}
-              <span className="font-mono text-foreground">
-                {book?.timestamp ?? '—'}
-              </span>
-            </div>
-            <div>
-              Levels:{' '}
-              <span className="text-foreground">
-                bids={book?.bids?.length ?? 0}, asks={book?.asks?.length ?? 0}
-              </span>
-            </div>
-            {book?.mid_price != null && (
-              <div>
-                Mid: <span className="font-mono text-foreground">{formatNumber(book.mid_price)}</span>
-              </div>
-            )}
-          </div>
-          {error && <div className="text-red-600 dark:text-red-400">Error: {error}</div>}
-        </CardContent>
-      </Card>
-
-      <DepthChart symbol={symbol} book={book} />
+      <OrderbookPanel symbol={symbol} book={book} levels={20} />
     </div>
   );
 }

@@ -42,9 +42,18 @@ export function useRealtimePrice(symbol: string) {
             // Merge update with existing data
             return {
               ...oldData,
-              price: data.price,
-              volume: data.volume, // Accumulate? Or is it total?
-              // Update other fields if available in WS message
+              price: data.price ?? oldData.price,
+              volume: data.volume ?? oldData.volume,
+              open_24h: data.open_24h ?? oldData.open_24h,
+              high_24h: data.high_24h ?? oldData.high_24h,
+              low_24h: data.low_24h ?? oldData.low_24h,
+              volume_24h: data.volume_24h ?? oldData.volume_24h,
+              price_change_24h: data.price_change_24h ?? oldData.price_change_24h,
+              price_change_pct_24h: data.price_change_pct_24h ?? oldData.price_change_pct_24h,
+              bid_price: data.bid_price ?? oldData.bid_price,
+              ask_price: data.ask_price ?? oldData.ask_price,
+              bid_volume: data.bid_volume ?? oldData.bid_volume,
+              ask_volume: data.ask_volume ?? oldData.ask_volume,
               timestamp: new Date().toISOString()
             };
           });

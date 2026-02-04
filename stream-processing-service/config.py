@@ -74,6 +74,9 @@ class Settings(BaseSettings):
     orderbook_levels: int = 20
     orderbook_max_updates_per_sec: int = 5
     
+    # Ticker processing
+    ticker_update_interval_seconds: int = 5
+    
     # PostgreSQL (for alert subscriptions - optional)
     postgres_host: Optional[str] = None
     postgres_port: int = 5432

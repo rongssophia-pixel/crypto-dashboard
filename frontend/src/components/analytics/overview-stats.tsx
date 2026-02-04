@@ -6,33 +6,42 @@ import { formatNumber } from '@/lib/utils';
 interface OverviewStatsProps {
   data?: TickerData;
   isLoading: boolean;
+  isConnected: boolean;
 }
 
-export function OverviewStats({ data, isLoading }: OverviewStatsProps) {
-  if (isLoading) {
+export function OverviewStats({ data, isLoading, isConnected }: OverviewStatsProps) {
+  if (isLoading || !isConnected) {
     return <Skeleton className="h-[200px] w-full" />;
   }
 
   if (!data) return null;
 
-  // Derived or mock values for demonstration where API doesn't provide them
-  const prevClose = data.price - (data.price_change_24h || 0);
-  const open = prevClose; // Simplified approximation
-  const mktCap = data.price * 19000000; // Mock calculation for BTC
-  
-  const stats = [
-    { label: 'Prev Close', value: prevClose, prefix: '$' },
-    { label: '24H Volume', value: data.volume_24h || data.volume, prefix: '$', compact: true },
-    { label: '24H High', value: data.high_24h, prefix: '$' },
-    
-    { label: 'Open', value: open, prefix: '$' },
-    { label: '24H Low', value: data.low_24h, prefix: '$' },
-    { label: 'Year High', value: data.high_24h * 1.5, prefix: '$' }, // Mock
-    
-    { label: 'Year Low', value: data.low_24h * 0.5, prefix: '$' }, // Mock
-    { label: 'Funding Rate', value: 0.01, suffix: '%' }, // Mock
-    { label: 'Market Cap', value: mktCap, prefix: '$', compact: true },
-  ];
+  const open = data.open_24h;
+  const prevClose = open;
+  const volume24h = data.volume_24h ?? data.volume;
+
+  const stats: Array<{
+    label: string;
+    value: number;
+    prefix?: string;
+    suffix?: string;
+    compact?: boolean;
+  }> = [];
+
+  const addStat = (
+    label: string,
+    value: number | undefined,
+    options?: { prefix?: string; suffix?: string; compact?: boolean }
+  ) => {
+    if (value === undefined || value === null || Number.isNaN(value)) return;
+    stats.push({ label, value, ...options });
+  };
+
+  addStat('Prev Close', prevClose, { prefix: '$' });
+  addStat('24H Volume', volume24h, { prefix: '$', compact: true });
+  addStat('24H High', data.high_24h, { prefix: '$' });
+  addStat('Open', open, { prefix: '$' });
+  addStat('24H Low', data.low_24h, { prefix: '$' });
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-px bg-slate-800 border border-slate-800 rounded-lg overflow-hidden">

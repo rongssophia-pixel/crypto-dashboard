@@ -9,6 +9,7 @@ export interface TickerData {
   volume: number;
   bid_price: number;
   ask_price: number;
+  open_24h?: number;
   high_24h: number;
   low_24h: number;
   volume_24h: number;

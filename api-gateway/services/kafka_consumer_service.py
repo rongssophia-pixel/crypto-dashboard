@@ -183,6 +183,8 @@ class WebSocketKafkaConsumer:
             formatted["mid_price"] = float(data["mid_price"])
         
         # Add 24h statistics if present
+        if "open_24h" in data and data["open_24h"]:
+            formatted["open_24h"] = float(data["open_24h"])
         if "high_24h" in data and data["high_24h"]:
             formatted["high_24h"] = float(data["high_24h"])
         if "low_24h" in data and data["low_24h"]:

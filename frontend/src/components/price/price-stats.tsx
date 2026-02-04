@@ -14,9 +14,11 @@ export function PriceStats({ data, isLoading }: PriceStatsProps) {
 
   if (!data) return null;
 
+  const open = data.open_24h ?? data.price - (data.price_change_24h || 0);
+
   const items = [
     { label: 'Close', value: data.price },
-    { label: 'Open', value: data.price - (data.price_change_24h || 0) }, // Approximate open
+    { label: 'Open', value: open },
     { label: 'High', value: data.high_24h },
     { label: 'Low', value: data.low_24h },
   ];
